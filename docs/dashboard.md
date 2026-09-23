@@ -30,6 +30,15 @@ file. The file is re-read when it changes.
   transcript JSONL (Claude repaints in the alternate screen, so tmux has no
   scrollback for it); Codex history from its rollout JSONL; the live screen tail
   is merged in. Older history is paged on demand.
+  Which Claude transcript: the session `claude agents --json` reports for the
+  pane's process (matched by pid) wins over the pane stamp, so a reopened or
+  `/resume`d window, or a session whose transcript moved into a worktree
+  directory, still shows the right conversation; a background pass repairs the
+  stale stamp. An authoritative transcript is shown whole — it is never cut at
+  what the screen shows (the screen may be scrolled up, in copy mode, or behind
+  a picker). While Claude's view is scrolled back ("Jump to bottom"), no screen
+  content is merged, and text already recorded anywhere in the transcript is
+  never appended as new output.
 - **Sub-agent panel** — progress of Claude sub-agents and Codex sub-agent
   threads for the selected pane.
 - **Workflow progress** — when a session runs a multi-agent workflow.
@@ -70,7 +79,11 @@ heading whose text is one of `TMUX_CARD_SUMMARY_HEADINGS` (default `Summary`,
 
 Status is built from, in order of trust: the ledger job state; the provider's
 own state (`claude agents --json`, transcript `stop_reason`, Codex rollout
-events); then screen heuristics (spinners, "esc to interrupt", dialogs). An idle
+events); then screen heuristics (spinners, "esc to interrupt", dialogs).
+Claude reports `busy` while a background monitor is armed after the turn ended;
+when the transcript says the turn is over and only monitors remain (no
+background shells, sub-agents or workflows), the card shows idle with an
+"answered · background monitor" hint. An idle
 screen never completes a leader or supervisor job; only the owner's
 `verify` / `close` / `collect` does.
 

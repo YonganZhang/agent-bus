@@ -185,6 +185,10 @@ WORKFLOW_RUNNING_STATUS_RE = re.compile(
     r")",
     re.I,
 )
+# Claude 的底栏/收尾行里列出的后台项："· 1 monitor ·"、"done 1:12 am · 1 monitor still running"、
+# "2 shells still running"。
+CLAUDE_BACKGROUND_RE = re.compile(r"\b(\d+)\s+(monitors?|shells?)\b", re.I)
+CLAUDE_BACKGROUND_TAIL_LINES = 6
 CLAUDE_TOOL_SUMMARY_RE = re.compile(
     r"^[•●·◦◉○]?\s*"
     r"(?:read|reading|ran|running|called|editing|edited|wrote|writing|created|opened|searched|listed|grepped|globbed|bash|write|edit)"
@@ -280,6 +284,8 @@ class Pane:
     # confidently completed conversation.
     identity_fidelity: str = ""
     identity_reason: str = ""
+    # 回完话后仍在后台挂着的监控（只提示，不算工作中），如 "后台监控 1 个"。
+    background: str = ""
 
 
 def job_summary(job: dict[str, object] | None) -> dict[str, object]:
@@ -2257,6 +2263,36 @@ def running_subagent_count(transcript_path: str) -> int:
     return count
 
 
+def claude_background_counts(text: str) -> dict[str, int]:
+    """Background monitors / shells Claude lists in its footer and "done" line."""
+    counts = {"monitor": 0, "shell": 0}
+    tail = status_tail_text(text).splitlines()[-CLAUDE_BACKGROUND_TAIL_LINES:]
+    for line in tail:
+        for number, noun in CLAUDE_BACKGROUND_RE.findall(line):
+            key = "monitor" if noun.lower().startswith("monitor") else "shell"
+            counts[key] = max(counts[key], int(number))
+    return counts
+
+
+def claude_background_label(text: str) -> str:
+    monitors = claude_background_counts(text)["monitor"]
+    return f"后台监控 {monitors} 个" if monitors else ""
+
+
+def claude_turn_done_with_monitors_only(text: str, transcript_path: str) -> bool:
+    """Claude reports ``busy`` while a background monitor is armed, even after the
+    turn has ended and the reply is waiting for the user.  A monitor only
+    watches; the answer is complete.  Background shells, sub-agents and
+    workflows are still work in progress (the win27 case: "done · 2 shells
+    still running" was mistaken for finished), so they keep ``busy``."""
+    counts = claude_background_counts(text)
+    if not counts["monitor"] or counts["shell"] or not transcript_path:
+        return False
+    if transcript_activity_status(transcript_path) != "idle" or running_subagent_count(transcript_path):
+        return False
+    return not WORKFLOW_RUNNING_STATUS_RE.search("\n".join(status_tail_text(text).splitlines()[-12:]))
+
+
 def infer_pane_status(pane_id: str, text: str, command: str, kind: str,
                       ai_alive: bool = True, transcript_path: str = "", pane_pid: str = "",
                       session_id: str = "") -> str:
@@ -2271,6 +2307,8 @@ def infer_pane_status(pane_id: str, text: str, command: str, kind: str,
         if official == "waiting":
             return "waiting"
         if official == "busy":
+            if claude_turn_done_with_monitors_only(text, transcript_path):
+                return status if status in {"waiting", "needs attention"} else "idle"
             return "running"
     # Codex 的主对话回完话后，派出去的子智能体可以继续干：活没干完，仍是处理中。
     if kind == "Codex" and status == "idle" and pane_running_subagents(kind, ai_alive, pane_pid=pane_pid):
@@ -3882,6 +3920,7 @@ def list_panes(session_filter: str = DEFAULT_SESSION, preview_history: int = 30,
                 ai_transcript=ai_transcript.strip(),
                 ai_alive=ai_alive,
                 identity_fidelity="exact" if ai_session_id.strip() else "unresolved",
+                background=claude_background_label(recent) if kind == "Claude" and ai_alive else "",
             )
         # Codex does not stamp a session id on the pane.  Resolve its open
         # rollout descriptors using the same screen-bound disambiguator used
@@ -4806,6 +4845,16 @@ FOCUS_SUMMARY_RE = re.compile(
 )
 
 
+# Claude's fullscreen view draws this pill while the conversation is scrolled up
+# ("Jump to bottom (ctrl+end)", or "3 new messages (…)" when more arrived since).
+CLAUDE_SCROLLED_BACK_RE = re.compile(r"(?:Jump to bottom|\b\d+ new messages?)\s*\(\s*(?:ctr|fn|cmd|⌘|click)", re.I)
+
+
+def claude_view_scrolled_back(capture_text: str) -> bool:
+    """The Claude screen shows older history, not the live end of the conversation."""
+    return bool(CLAUDE_SCROLLED_BACK_RE.search("\n".join(status_tail_text(capture_text).splitlines()[-12:])))
+
+
 def merge_live_screen_tail(
     transcript_blocks: list[dict[str, str]],
     capture_text: str,
@@ -4823,6 +4872,10 @@ def merge_live_screen_tail(
     recorded in the transcript.
     """
     if not transcript_blocks:
+        return transcript_blocks
+    # 屏幕往上翻着时显示的是旧历史，不是还没落盘的新内容；这时屏幕上没有任何东西能接在
+    # 记录后面（改前会把翻到的旧段落、甚至首条消息里粘贴的整段对话当新内容追加）。
+    if pane_kind == "Claude" and claude_view_scrolled_back(capture_text):
         return transcript_blocks
     # 聚焦模式把一串工具调用折成一行 "Ran 5 agents, ran 11 shell commands"。那些调用
     # 在记录里逐条都有，这行摘要只会把同一批动作再显示一遍，所以实时尾部不要它。
@@ -4892,8 +4945,14 @@ def merge_live_screen_tail(
         return transcript_blocks
 
     merged = list(transcript_blocks)
+    recorded_norms = [_block_text_norm(block) for block in transcript_blocks]
     for live_block in live_blocks[anchor_index + 1:]:
         if any(_blocks_equivalent(live_block, block) for block in merged[-60:]):
+            continue
+        # Text already recorded anywhere (an older turn, or a paste inside a
+        # prompt) is history on screen, not new output.
+        live_norm = _block_text_norm(live_block)
+        if len(live_norm) >= 24 and any(live_norm in norm for norm in recorded_norms):
             continue
         pending_block = dict(live_block)
         pending_block["pending"] = True
@@ -6101,20 +6160,93 @@ def panes_stamped_to(path: str, exclude_pane_id: str = "") -> list[str]:
     return out
 
 
-def stamped_transcript_for_pane(pane: Pane | None) -> str:
-    """SessionStart hook 钉在这个 pane 上的 transcript 路径,拿不到就返回空串。
+CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
 
-    只接受仍然存在的文件: pane 被复用去干别的之后,旧标记会残留,而残留的路径通常已经
-    不再对应这个窗口。文件还在也不能证明它一定是当前会话,所以调用方仍把它当"最优先的
-    线索"而不是"绝对真理"——只是它比屏幕内容指纹强得多。
-    """
+
+def official_claude_record(pane: Pane | None) -> dict | None:
+    """Claude's own record for the session running in this pane, matched by pid only.
+
+    ``claude agents --json`` is the provider's truth for which conversation a
+    process is in right now; a pid in the pane's process tree ties it to the
+    pane exactly (no session-id fallback, which could belong to another window)."""
+    pane_pid = str(getattr(pane, "pane_pid", "") or "") if pane else ""
+    if not pane_pid:
+        return None
+    pids = _descendant_pids(pane_pid) | {pane_pid}
+    return claude_sessions.record_for(claude_agent_records(), pids, "")
+
+
+def claude_transcript_for_session(session_id: str, cwd: str = "") -> str:
+    """The transcript file of ``session_id``.  One session resumed in two
+    directories has one file per directory; the one in the process's cwd wins."""
+    if not session_id:
+        return ""
+    hits = [path for path in CLAUDE_PROJECTS_DIR.glob(f"*/{session_id}.jsonl") if path.is_file()]
+    if len(hits) > 1 and cwd:
+        slug = re.sub(r"[^A-Za-z0-9]", "-", cwd)
+        hits = [path for path in hits if path.parent.name == slug] or hits
+    return str(max(hits, key=lambda path: path.stat().st_mtime)) if hits else ""
+
+
+def stamped_transcript_for_pane(pane: Pane | None) -> str:
+    """The transcript of the conversation this pane is running, or ''.
+
+    The SessionStart hook stamps the pane with its session; Claude's own
+    session list says which session the pane's process is in *now*.  When a
+    window was reopened or /resume'd and the stamp did not follow, the official
+    session wins (the background loop also rewrites the stale stamp).  Only an
+    existing file counts: a reused pane keeps its old stamp."""
     path = (getattr(pane, "ai_transcript", "") or "").strip() if pane else ""
-    if not path:
-        return ""
+    record = official_claude_record(pane) if pane and pane.kind == "Claude" and pane.ai_alive else None
+    official = str((record or {}).get("sessionId") or "")
+    cwd = str((record or {}).get("cwd") or (pane.cwd if pane else "") or "")
+    if official and official != (getattr(pane, "ai_session_id", "") or "").strip():
+        return claude_transcript_for_session(official, cwd)
     try:
-        return path if os.path.isfile(path) else ""
+        if path and os.path.isfile(path):
+            return path
     except OSError:
-        return ""
+        pass
+    # The stamped id is confirmed but its file is elsewhere: a session that
+    # entered a worktree writes its transcript under the worktree's directory.
+    return claude_transcript_for_session(official, cwd) if official else ""
+
+
+def reconcile_claude_stamps(session: str = "") -> list[dict[str, str]]:
+    """Rewrite pane stamps that no longer name the session the pane runs.
+
+    Recovery snapshots and every reader of the stamp trust it, so a stale one
+    (window reopened, /resume, a hook that did not fire) would restore or show
+    the wrong conversation.  The correction comes only from Claude's own
+    session list matched by pid; panes without such a record are left alone."""
+    fixed: list[dict[str, str]] = []
+    for pane in list_panes(session or DEFAULT_SESSION, include_preview=False):
+        if pane.kind != "Claude" or not pane.ai_alive:
+            continue
+        record = official_claude_record(pane)
+        official = str((record or {}).get("sessionId") or "")
+        if not official:
+            continue
+        transcript = claude_transcript_for_session(official, str((record or {}).get("cwd") or pane.cwd))
+        stamp_file_ok = bool(pane.ai_transcript) and os.path.isfile(pane.ai_transcript)
+        if official == pane.ai_session_id and (stamp_file_ok or not transcript):
+            continue
+        options = [("@ai_session_id", official), ("@ai_provider", "claude")]
+        if transcript:
+            options.append(("@ai_transcript", transcript))
+        if any(run_tmux(["set-option", "-p", "-t", pane.pane_id, name, value]).returncode for name, value in options):
+            continue
+        item = {"pane": pane.pane_id, "old_session_id": pane.ai_session_id, "new_session_id": official}
+        event_ledger.append_event(
+            "pane_identity_restamped", pane=pane.pane_id, target=pane.target, source="card-dashboard",
+            message=(
+                f"stamp {pane.ai_session_id or '-'} -> {official} (claude agents --json)"
+                if official != pane.ai_session_id else f"transcript path -> {transcript}"
+            ),
+            data={**item, "transcript": transcript},
+        )
+        fixed.append(item)
+    return fixed
 
 
 def _with_dialog_choice(blocks: list[dict], pane: Pane, capture_text: str) -> list[dict]:
@@ -6202,7 +6334,12 @@ def blocks_for_pane_with_meta(pane: Pane | None, capture_text: str) -> tuple[lis
             except Exception:
                 blocks = []
             if blocks:
-                blocks = trim_transcript_blocks_to_screen(blocks, capture_text)
+                # Anchoring to the screen only protects a *guessed* transcript that
+                # another pane may share.  An authoritative one is shown whole: the
+                # screen may be scrolled up ("Jump to bottom"), in copy mode or
+                # behind a picker, and cutting at what it shows hid the newest turns.
+                if not stamped:
+                    blocks = trim_transcript_blocks_to_screen(blocks, capture_text)
                 blocks = merge_live_screen_tail(
                     blocks, capture_text, pane_kind=pane.kind,
                     pane_identity=_pane_agent_process_identity(pane),
@@ -7476,6 +7613,18 @@ def auto_approve_waiting_panes(now: float | None = None) -> list[dict[str, str]]
     return answered
 
 
+IDENTITY_RECONCILE_INTERVAL = float(os.environ.get("CARDS_IDENTITY_RECONCILE_INTERVAL", "60"))
+
+
+def _identity_loop() -> None:
+    while True:
+        try:
+            reconcile_claude_stamps()
+        except Exception as exc:  # noqa: BLE001 - keep the loop alive; the error is logged
+            print(f"identity reconcile error: {exc}", file=sys.stderr, flush=True)
+        time.sleep(IDENTITY_RECONCILE_INTERVAL)
+
+
 def _auto_approve_loop() -> None:
     while True:
         try:
@@ -7496,6 +7645,8 @@ Serve the Agent Bus Cards dashboard (no options; configured by environment).
                                     (or TMUX_CARD_USER / TMUX_CARD_PASS); every
                                     request is refused while none is configured
   CARDS_AUTO_APPROVE=1              opt in to the background auto-approve loop
+  CARDS_IDENTITY_RECONCILE_INTERVAL seconds between stale session-stamp repairs
+                                    (default 60; 0 disables)
 
 See docs/dashboard.md and docs/configuration.md for the full list.
 """
@@ -7518,6 +7669,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"card dashboard cache warmup failed: {exc}", file=sys.stderr, flush=True)
     if dashboard_auto_approve_requested():
         threading.Thread(target=_auto_approve_loop, name="auto-approve", daemon=True).start()
+    if IDENTITY_RECONCILE_INTERVAL > 0:
+        threading.Thread(target=_identity_loop, name="identity-reconcile", daemon=True).start()
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"tmux card dashboard listening on http://{HOST}:{PORT}", flush=True)
     httpd.serve_forever()

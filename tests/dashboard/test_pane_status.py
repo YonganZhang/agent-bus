@@ -251,6 +251,38 @@ class BackgroundWorkStillCountsAsRunningTest(unittest.TestCase):
         self.assertEqual(server.infer_status(screen, "bash"), "idle")
 
 
+class MonitorOnlyBusyIsAnsweredTest(unittest.TestCase):
+    """Claude 回完话后只剩后台监控挂着时，官方状态仍是 busy；回复其实已完成、在等用户。
+
+    改前卡片一律跟官方 busy 显示"工作中"。后台 shell、子智能体、工作流仍算处理中。
+    """
+
+    MONITOR_DONE = claude_screen(
+        "<text>",
+        "✻ Worked for 41s · done 1:12 am · 1 monitor still running",
+        chrome="  ⏵⏵ bypass permissions on · 1 monitor · ← for agents · ↓ to manage",
+    )
+
+    def status(self, screen: str, *, recorded: str = "idle", subagents: int = 0) -> str:
+        with mock.patch.object(server, "claude_agent_record", return_value={"status": "busy"}), \
+             mock.patch.object(server, "transcript_activity_status", return_value=recorded), \
+             mock.patch.object(server, "running_subagent_count", return_value=subagents):
+            return server.infer_pane_status("%x", screen, "claude", "Claude", True, "/t.jsonl", "1", "s")
+
+    def test_finished_turn_with_only_a_monitor_is_idle_with_a_hint(self) -> None:
+        self.assertEqual(self.status(self.MONITOR_DONE), "idle")
+        self.assertEqual(server.claude_background_label(self.MONITOR_DONE), "后台监控 1 个")
+
+    def test_shells_subagents_or_an_unfinished_turn_still_run(self) -> None:
+        shells = claude_screen("<text>", "✻ Worked for 41s · done 1:12 am · 1 monitor still running · 2 shells still running",
+                               chrome="  ⏵⏵ bypass permissions on · 1 monitor · 2 shells · ← for agents")
+        self.assertEqual(self.status(shells), "running")
+        self.assertEqual(self.status(self.MONITOR_DONE, subagents=1), "running")
+        self.assertEqual(self.status(self.MONITOR_DONE, recorded="running"), "running")
+        no_monitor = claude_screen("<text>", "✻ Worked for 41s · done 1:12 am")
+        self.assertEqual(self.status(no_monitor), "running")  # busy for a reason we cannot see: trust Claude
+
+
 class TranscriptActivityTest(unittest.TestCase):
     """忙闲以 Claude 自己写的落盘记录为准，屏幕只补记录里没有的东西。
 

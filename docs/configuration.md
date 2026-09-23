@@ -48,6 +48,7 @@ variables keep historical `SECRETARY_` / `TMUX_CARD_` prefixes.
 | `AGENT_BUS_AUTO_APPROVE` | unset | `1` / `0` forces auto-approve of permission-type dialogs on / off. Unset: `config.json` `auto_approve_permissions` (default `false`) |
 | `CARDS_AUTO_APPROVE` | unset | Dashboard only. `1` starts the background loop and enables its passes; `0` disables it even if the bus switch is on. The loop also starts when the dashboard process has `AGENT_BUS_AUTO_APPROVE=1`; turning the switch on only with `leader config` does **not** start the dashboard loop |
 | `CARDS_AUTO_APPROVE_INTERVAL` | `6` | Seconds between dashboard auto-approve passes |
+| `CARDS_IDENTITY_RECONCILE_INTERVAL` | `60` | Seconds between passes that rewrite a Claude pane's stale `@ai_session_id` / `@ai_transcript` from `claude agents --json` (matched by pid); each repair is logged as `pane_identity_restamped`. `0` disables |
 | `AGENT_BUS_CLAUDE_PERMISSION_MODE` | unset | If set, `agent_window.sh` launches Claude with `--permission-mode <value>` (for example `bypassPermissions`; understand the risk first) |
 | `AGENT_BUS_HUMAN_ACTIVE_SECONDS` | `20` | Background auto-approve skips a pane a person used within this many seconds |
 | `AGENT_BUS_CARDS_CHECKPOINT` | `1` | `agent_window.sh restart` snapshots before and reconciles dashboard metadata after replacing a pane; `0` skips (tests) |

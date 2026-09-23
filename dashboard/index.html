@@ -740,6 +740,8 @@
     }
     @keyframes cardThinkingPulse { 0%,100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.18); } }
     .card.is-running { box-shadow: inset 3px 0 0 var(--green); }
+    /* 回完话、只剩后台监控挂着：不是工作中，只提示一下。 */
+    .card-background { color: var(--muted); font-weight: 600; font-size: 11px; margin-right: 7px; vertical-align: middle; }
 
     .job-pill {
       display: inline-flex;
@@ -8258,7 +8260,7 @@
               </select>
             </div>
           </div>
-          <div class="preview">${jobPill(pane.job, pane)}${!pane.job?.status && (paneIsActivelyThinking(pane) || paneAwaitsReply(pane)) ? `<span class="card-thinking"><span class="card-thinking-dot"></span>${subagentsBusyLabel(pane) || (paneHasStartedResponse(pane) ? "处理中·已有阶段回复" : paneAwaitsReply(pane) ? "等待回复" : "处理中")}</span>` : ""}${escapeHtml(pane.preview || "暂无最近输出")}</div>
+          <div class="preview">${jobPill(pane.job, pane)}${!pane.job?.status && (paneIsActivelyThinking(pane) || paneAwaitsReply(pane)) ? `<span class="card-thinking"><span class="card-thinking-dot"></span>${subagentsBusyLabel(pane) || (paneHasStartedResponse(pane) ? "处理中·已有阶段回复" : paneAwaitsReply(pane) ? "等待回复" : "处理中")}</span>` : ""}${pane.background && !paneIsRunning(pane) ? `<span class="card-background" title="回复已完成；后台监控仍在运行，有新事件时 AI 会被唤醒">已回复·${escapeHtml(pane.background)}</span>` : ""}${escapeHtml(pane.preview || "暂无最近输出")}</div>
           ${traceOverviewHtml(pane)}
         </article>
       `).join("");
