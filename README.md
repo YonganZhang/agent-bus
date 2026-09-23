@@ -209,7 +209,7 @@ Requirements:
 - Claude Code and/or the Codex CLI, already logged in
 
 ```bash
-git clone <this repository> ~/src/agent-bus
+git clone https://github.com/YonganZhang/agent-bus.git ~/src/agent-bus
 export PATH="$HOME/src/agent-bus/bin:$PATH"     # provides agent-bus (and the alias secretary-bus)
 agent-bus --help
 ```

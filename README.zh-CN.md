@@ -90,7 +90,7 @@ Agent Bus 是一组只用 Python 标准库的小工具加一个网页面板，�
 - 已登录的 Claude Code 和/或 Codex CLI
 
 ```bash
-git clone <本仓库> ~/src/agent-bus
+git clone https://github.com/YonganZhang/agent-bus.git ~/src/agent-bus
 export PATH="$HOME/src/agent-bus/bin:$PATH"     # 提供 agent-bus（及别名 secretary-bus）
 agent-bus --help
 ```
