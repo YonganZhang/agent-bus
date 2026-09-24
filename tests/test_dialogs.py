@@ -114,6 +114,15 @@ class ReadAndPolicyTest(unittest.TestCase):
         lone_draft = "\n".join(["• requires approval", "", "› 1. Run the full test suite", "", footer])
         self.assertIsNone(dialogs.read_dialog(lone_draft))
 
+    def test_codex_hooks_review_with_confirm_footer_is_answered(self) -> None:
+        # Codex 0.156.1 draws "enter confirm · esc skip" under its startup hooks review.
+        screen = "\n".join(["  Hooks need review", "  1 hook is new or changed.", "",
+                            "› 1. Trust all and continue", "  2. Continue without trusting (hooks won't run)", "",
+                            "  enter confirm · esc skip"])
+        dialog = dialogs.read_dialog(screen)
+        self.assertEqual(dialog.kind, "hooks-review")
+        self.assertEqual(dialog.options[dialogs.auto_answer_index(dialog)], "Trust all and continue")
+
     def test_account_choices_are_left_to_the_user(self) -> None:
         screen = "\n".join([RULE, " Detected a custom API key in your environment", " Do you want to use this API key?",
                             " ❯ 1. Yes", "   2. No (recommended)", " Enter to confirm · Esc to cancel"])

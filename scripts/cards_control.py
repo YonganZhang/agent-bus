@@ -415,6 +415,26 @@ def cmd_delete_category(args: argparse.Namespace, client: CardsClient) -> None:
     print(f"deleted category {result.get('category')}; unassigned={result.get('unassigned', 0)}")
 
 
+def replace_pane_in_order(client: CardsClient, old_pane: str, new_pane: str) -> dict[str, object]:
+    """Give a replaced pane (restart / relaunch) its predecessor's place in the card order.
+
+    Categories, favourites and aliases are keyed by window and cwd, so they
+    survive a pane replacement; the order list is keyed by pane id and would
+    otherwise push the new pane to the end of the grid."""
+    order = (client.request("GET", "/api/prefs").get("prefs") or {}).get("paneOrder") or []
+    if old_pane not in order:
+        return {"replaced": False, "reason": "old pane not in order"}
+    updated = [new_pane if pane == old_pane else pane for pane in order if pane != new_pane or pane == old_pane]
+    client.request("POST", "/api/prefs", {"paneOrder": updated})
+    return {"replaced": True, "old": old_pane, "new": new_pane, "position": updated.index(new_pane)}
+
+
+def cmd_order_replace(args: argparse.Namespace, client: CardsClient) -> None:
+    result = replace_pane_in_order(client, args.old_pane, args.new_pane)
+    print(json.dumps(result, ensure_ascii=False) if args.json else
+          (f"card order: {args.old_pane} -> {args.new_pane}" if result["replaced"] else f"card order unchanged: {result['reason']}"))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Organize live AI Session Cards panes through the identity-safe Cards API"
@@ -457,6 +477,11 @@ def build_parser() -> argparse.ArgumentParser:
     category_delete = sub.add_parser("category-delete", help="Delete one custom Cards category")
     category_delete.add_argument("category")
     category_delete.add_argument("--json", action="store_true")
+
+    order_replace = sub.add_parser("order-replace", help="Move a replaced pane's card-order slot to its new pane id")
+    order_replace.add_argument("old_pane", help="pane id before the replacement, e.g. %%1048")
+    order_replace.add_argument("new_pane", help="pane id after the replacement, e.g. %%11644")
+    order_replace.add_argument("--json", action="store_true")
     return parser
 
 
@@ -469,6 +494,8 @@ def main() -> int:
         cmd_group(args, client)
     elif args.command == "category-delete":
         cmd_delete_category(args, client)
+    elif args.command == "order-replace":
+        cmd_order_replace(args, client)
     else:
         cmd_mutate(args, client)
     return 0

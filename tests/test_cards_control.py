@@ -266,5 +266,31 @@ class CardsControlTest(unittest.TestCase):
         )
 
 
+class OrderReplaceTest(unittest.TestCase):
+    """A restarted pane takes its predecessor's slot in the card order."""
+
+    class Client:
+        def __init__(self, order: list[str]) -> None:
+            self.order = order
+            self.posted: list[dict[str, object]] = []
+
+        def request(self, method: str, path: str, payload: dict[str, object] | None = None) -> dict:
+            if method == "GET":
+                return {"prefs": {"paneOrder": list(self.order)}}
+            self.posted.append(payload or {})
+            return {"ok": True}
+
+    def test_new_pane_takes_the_old_slot(self) -> None:
+        client = self.Client(["%1", "%2", "%3", "%9"])  # %9: the new pane already appended by a browser tab
+        result = cards_control.replace_pane_in_order(client, "%2", "%9")
+        self.assertEqual(client.posted, [{"paneOrder": ["%1", "%9", "%3"]}])
+        self.assertEqual(result["position"], 1)
+
+    def test_unknown_old_pane_changes_nothing(self) -> None:
+        client = self.Client(["%1"])
+        self.assertFalse(cards_control.replace_pane_in_order(client, "%5", "%6")["replaced"])
+        self.assertEqual(client.posted, [])
+
+
 if __name__ == "__main__":
     unittest.main()

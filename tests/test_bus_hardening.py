@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import sys
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -135,6 +136,9 @@ class LongTaskTest(unittest.TestCase):
             self.assertEqual(len(files), 1)
             self.assertEqual(files[0].read_text(encoding="utf-8").rstrip("\n"), text)
             self.assertIn(str(files[0]), pointer)
+            on_disk = hashlib.sha256(files[0].read_bytes()).hexdigest()[:16]
+            self.assertIn(on_disk, pointer)            # receiver's `sha256sum` matches the pointer
+            self.assertIn(on_disk, files[0].name)
 
     def test_text_file_source_no_longer_refuses_long_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

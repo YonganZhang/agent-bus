@@ -293,12 +293,13 @@ def inline_or_spill(text: str, *, spill_dir: Path | None = None, label: str = "t
     text = text.strip("\n")
     if len(text) <= INLINE_TEXT_LIMIT and "\n" not in text and "\t" not in text:
         return text
-    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    body = (text + "\n").encode("utf-8")
+    digest = hashlib.sha256(body).hexdigest()[:16]   # of the exact bytes on disk: `sha256sum` agrees
     directory = spill_dir or (TASK_SPILL_DIR / time.strftime("%Y-%m-%d"))
     directory.mkdir(parents=True, exist_ok=True)
     safe_label = re.sub(r"[^A-Za-z0-9._-]+", "-", label).strip("-") or "task"
     path = directory / f"{safe_label}-{digest}.md"
-    path.write_text(text + "\n", encoding="utf-8")
+    path.write_bytes(body)
     return (
         f"任务内容较长，已写入文件 {path} （sha256 前 16 位 {digest}）。"
         "请完整读取这个文件，文件内容就是本次任务，按其中要求执行。"

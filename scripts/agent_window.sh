@@ -413,7 +413,7 @@ open_one() {
   [ "$n" -eq 0 ] && { echo "⚠️ [$kw] 没找到项目"; return 1; }
   [ "$n" -gt 1 ] && { echo "⚠️ [$kw] 匹配多个,请更精确:"; printf '%s\n' "$matches" | sed 's|.*/projects/|     |'; return 1; }
   name=$(basename "$matches" | sed 's/-[0-9a-f]\{6\}$//')
-  local open_cmd="${BASH_SOURCE[0]} open"
+  local open_cmd="$SCRIPT_DIR/agent_window.sh open"
   [ "$SESSION" != "secretary_web" ] && open_cmd="$open_cmd --session $(printf '%q' "$SESSION")"
   [ "$kind" = "codex" ] && open_cmd="$open_cmd --codex"
   require_session_choice "$kind" "$matches" "$open_cmd $(printf '%q' "$kw")" || return 1
@@ -469,7 +469,7 @@ case "$ACTION" in
     ;;
   new)
     kind="${1:-bash}"
-    new_cmd="${BASH_SOURCE[0]} new $kind"
+    new_cmd="$SCRIPT_DIR/agent_window.sh new $kind"
     [ -n "$CWD" ] && new_cmd="$new_cmd --cwd $(printf '%q' "$CWD")"
     [ -n "$NAME" ] && new_cmd="$new_cmd --name $(printf '%q' "$NAME")"
     [ "$SESSION" != "secretary_web" ] && new_cmd="$new_cmd --session $(printf '%q' "$SESSION")"
@@ -530,7 +530,10 @@ case "$ACTION" in
       echo "   (确实要换成新会话才用 restart --fresh；要接指定会话用 --resume-id <ID>)" >&2
       exit 1
     fi
-    if [ "$RESUME_DEFAULT" = "1" ] && [ "$is_ai" = "1" ] && [ "$oldkind" != "$kind" ]; then
+    # 显式 --resume-id 时调用方已指明会话：窗口里 AI 已退出、认不出原 AI 也可以按该会话号拉起
+    # (跨模型复用会话号仍然拒绝)。
+    if [ "$RESUME_DEFAULT" = "1" ] && [ "$is_ai" = "1" ] && [ "$oldkind" != "$kind" ] \
+       && { [ -n "$oldkind" ] || [ -z "$RESUME_ID" ]; }; then
       if [ -z "$oldkind" ]; then
         echo "⛔ 认不出窗口 #$oldidx 原来跑的是哪个 AI，不能按会话号重启为 $kind；保持原窗口。" >&2
         echo "   要接指定会话用 --resume-id <ID>，要开新会话用 --fresh。" >&2
@@ -589,6 +592,12 @@ case "$ACTION" in
     tmux kill-window -t "$oldpane" || exit 1
     sleep 1
     spawn_window "$oldname" "$prog" "$CWD" "$oldidx" || exit 1
+    # 卡片顺序按 pane id 记；新 pane 接替旧 pane 的位置，不掉到网格末尾。
+    newpane="$(tmux display-message -p -t "$SESSION:$oldidx" '#{pane_id}' 2>/dev/null || true)"
+    if [ -n "$newpane" ] && [ "${AGENT_BUS_CARDS_CHECKPOINT:-1}" = "1" ]; then
+      "$BUS_CLI" cards order-replace "$oldpane" "$newpane" >/dev/null 2>&1 \
+        || echo "⚠️ 卡片顺序没能转到新 pane（不影响窗口本身）: agent-bus cards order-replace $oldpane $newpane" >&2
+    fi
     cards_reconcile_after_restart || exit 1
     echo "✅ 重启窗口 [$oldname] 起 ${prog:-bash} @ ${CWD:-继承}"
     ;;

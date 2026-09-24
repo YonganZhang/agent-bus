@@ -56,6 +56,7 @@ AI Session Cards organization:
   cards category SELECTOR CATEGORY [--create]    Assign one pane to a category
   cards group CATEGORY SELECTOR... [--create]    Atomically group leader and workers
   cards uncategorize SELECTOR                    Clear one pane's category
+  cards order-replace OLD_PANE NEW_PANE          Give a replaced pane its predecessor's card slot
 
 Tmux + Cards disaster recovery:
   window prepare '#23' --to codex                Write a bounded cross-provider handoff plan

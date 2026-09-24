@@ -48,7 +48,7 @@ HIGHLIGHT_RE = re.compile(r"^(\s*)[❯›]\s+(\S.*?)\s*$")
 RULE_RE = re.compile(r"^\s*[─━═▔]{8,}")
 HINT_RE = re.compile(
     r"(enter to|esc to|tab to|to select|to confirm|to cancel|to navigate|↑|↓|space to|press \d|ctrl\+"
-    r"|enter select|esc back)",
+    r"|enter (?:select|confirm)|esc (?:back|skip))",
     re.I,
 )
 
