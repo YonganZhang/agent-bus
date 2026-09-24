@@ -11,7 +11,6 @@ Run: python3 -m pytest tests/dashboard/test_terminal_tmux.py -q
 
 from __future__ import annotations
 
-import dataclasses
 import http.client
 import json
 import os
@@ -233,20 +232,6 @@ class TerminalResizeRealTmuxTest(RealTmuxTestBase):
         self.assertEqual(server.terminal_capture(self.printer, lines=5)["width"], 90)
         server.terminal_focus(self.printer, session=SESSION)
         self.assertEqual(self.size(self.printer)[1], "window-size latest")
-
-    def test_claude_windows_are_capped_below_the_diff_panel_width(self) -> None:
-        real = server.pane_by_id
-
-        def as_claude(pane_id):
-            pane = real(pane_id)
-            return dataclasses.replace(pane, kind="Claude") if pane is not None else None
-
-        with mock.patch.object(server, "pane_by_id", side_effect=as_claude):
-            result = server.terminal_resize(self.printer, 200, 30, session=SESSION)
-        self.assertEqual((result["resized"], result["cols"], result["clamped_for_claude"]), (True, 109, True))
-        self.assertEqual(self.size(self.printer)[0], "109x30")
-        # a Codex / shell pane is not capped
-        self.assertEqual(server.terminal_resize(self.printer, 200, 30, session=SESSION)["cols"], 200)
 
     def test_an_active_real_client_on_that_window_wins(self) -> None:
         self.tmux.attach(SESSION)  # the session shows the printer window (1)

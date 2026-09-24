@@ -3621,10 +3621,6 @@ def terminal_capture(
 
 
 TERMINAL_COLS_RANGE = (40, 250)
-# Claude Code's fullscreen UI opens a code-changes side panel (diff panel) at >= 110 columns,
-# splitting the screen in two; Claude windows get at most 109 so it never opens
-# (https://code.claude.com/docs/en/interactive-mode.md, "Diff panel").
-CLAUDE_MAX_COLS = 109
 TERMINAL_ROWS_RANGE = (12, 120)
 TERMINAL_CLIENT_ACTIVE_SECONDS = 30
 
@@ -3650,9 +3646,6 @@ def terminal_resize(pane_id: str, cols: object, rows: object, session: str = "")
     pane = pane_by_id(pane_id)
     if pane is None:
         raise FileNotFoundError(f"pane not found or not in {session}: {pane_id}")
-    clamped = pane.kind == "Claude" and cols > CLAUDE_MAX_COLS
-    if clamped:
-        cols = CLAUDE_MAX_COLS
     now = time.time()
     watching = [
         {"tty": c["tty"], "ttyd": c["ttyd"], "last_activity": c["last_activity"]}
@@ -3664,8 +3657,7 @@ def terminal_resize(pane_id: str, cols: object, rows: object, session: str = "")
     if before.returncode != 0 or before.stdout.count("\t") != 2:
         raise RuntimeError(before.stderr.strip() or f"cannot read the window of {pane_id}")
     window_id, width, height = before.stdout.strip().split("\t")
-    result: dict[str, object] = {"pane": pane_id, "window": window_id, "cols": int(width), "rows": int(height),
-                                 "clamped_for_claude": clamped}
+    result: dict[str, object] = {"pane": pane_id, "window": window_id, "cols": int(width), "rows": int(height)}
     if watching:
         return {**result, "resized": False, "reason": "a real terminal client is using this window", "clients": watching}
     if (int(width), int(height)) == (cols, rows):

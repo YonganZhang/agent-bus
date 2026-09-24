@@ -89,9 +89,7 @@ file. The file is re-read when it changes.
   jumps while you type. The pane's window is resized to the viewer
   (`/api/terminal/resize`, like a tmux client; skipped while a real terminal
   client used that window in the last 30 s, in which case the view re-wraps
-  lines to the browser width instead). Claude windows get at most 109 columns:
-  Claude Code's fullscreen UI opens a code-changes side panel at 110 columns or
-  more. Scrolling up reads tmux scrollback, then
+  lines to the browser width instead). Scrolling up reads tmux scrollback, then
   continues with the conversation records (Claude JSONL / Codex rollout) up to
   the start of the session. Double-click or End jumps to the latest line. The
   chosen view (对话 / 终端) applies to every window and is remembered per

@@ -10828,9 +10828,6 @@
     // 服务端不调 (尊重真终端), 前端退回重排显示。防抖 500ms, 变化 < 2 列/行不重发。
     const TERMINAL_COLS = [40, 250];
     const TERMINAL_ROWS = [12, 120];
-    // Claude Code 全屏界面在 >=110 列时会在右侧开代码改动侧栏 (diff panel), 把画面分成两栏;
-    // Claude 窗口最多给 109 列, 侧栏就开不出来 (服务端 terminal_resize 同样夹紧)。
-    const CLAUDE_MAX_COLS = 109;
 
     function terminalGrid() {
       const container = el("terminalText");
@@ -10853,9 +10850,7 @@
       const rawCols = Math.floor(inner / charWidth);
       const rawRows = Math.floor(usableHeight / lineHeight);
       const clamp = (value, [lo, hi]) => Math.max(lo, Math.min(hi, value));
-      let cols = clamp(rawCols, TERMINAL_COLS);
-      if (selectedPane()?.kind === "Claude") cols = Math.min(cols, CLAUDE_MAX_COLS);
-      return { cols, rows: clamp(rawRows, TERMINAL_ROWS), rawCols, rawRows, charWidth, lineHeight };
+      return { cols: clamp(rawCols, TERMINAL_COLS), rows: clamp(rawRows, TERMINAL_ROWS), rawCols, rawRows, charWidth, lineHeight };
     }
 
     // 该不该发 resize: 已经是这个尺寸 (差 < 2) 或刚为同一尺寸发过 (1 分钟内) 就不发。

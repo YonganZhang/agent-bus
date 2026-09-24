@@ -957,12 +957,3 @@ const __out = {
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-
-
-class ClaudeColumnCapFrontendTest(unittest.TestCase):
-    def test_claude_panes_ask_for_at_most_109_columns(self) -> None:
-        source = INDEX.read_text(encoding="utf-8")
-        self.assertIn("const CLAUDE_MAX_COLS = 109;", source)
-        grid = source[source.index("function terminalGrid()"):source.index("function terminalResizeNeeded(")]
-        self.assertIn('selectedPane()?.kind === "Claude"', grid)
-        self.assertIn("Math.min(cols, CLAUDE_MAX_COLS)", grid)
