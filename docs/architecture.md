@@ -117,4 +117,8 @@ API under `/cards`. It lists panes of one tmux session, captures and parses
 their screens, reads Claude transcripts and Codex rollouts for history, merges
 ledger jobs into card status, stores organisation preferences, and forwards
 input (`/api/send`, `/api/key`, `/api/choose`) through the same delivery code
-as the CLI. See [dashboard.md](dashboard.md).
+as the CLI. Per-card Git status and the optional plan summary are computed on
+a small background pool, never on the request path. The in-card terminal view
+reads panes with `capture-pane -e` (`/api/terminal/capture`). The optional plan
+panel and archive button call an external plan CLI
+([plan-integration.md](plan-integration.md)). See [dashboard.md](dashboard.md).

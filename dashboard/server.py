@@ -28,7 +28,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
@@ -87,6 +87,10 @@ LOCAL_ARTIFACT_ROOT = Path(
 # so links to it can be previewed through the authenticated route instead.
 PUBLIC_SHARE_HOST = os.environ.get("TMUX_CARD_PUBLIC_SHARE_HOST", "").strip()
 PUBLIC_SHARE_DIR = os.environ.get("TMUX_CARD_PUBLIC_SHARE_DIR", "share-public").strip().strip("/")
+# Optional: URL of a full web terminal (e.g. ttyd attached to the same tmux
+# session).  When set, the "⋯" menu offers 打开完整终端页, which points that
+# terminal at the selected window (POST /api/terminal/focus) and opens the URL.
+TERMINAL_URL = os.environ.get("TMUX_CARD_TERMINAL_URL", "").strip()
 LOCAL_ARTIFACT_SUFFIXES = frozenset({
     ".pdf",
     ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
@@ -103,6 +107,7 @@ LOCAL_ARTIFACT_SENSITIVE_NAME_RE = re.compile(
 )
 PREFS = STATE_DIR / "prefs.json"  # 卡片分类/别名/顺序/活动时间的服务端持久化(清缓存/换设备不丢)
 PREFS_LOCK = threading.RLock()
+ARCHIVE_RUNS_KEY = "archiveRuns"  # prefs.json 里由服务端独占的归档记录 (见"归档结果回路")
 SEND_REQUEST_LOCK = threading.RLock()
 # Basic Auth credentials file (WEBTERM_USER / WEBTERM_PASS); TMUX_CARD_USER /
 # TMUX_CARD_PASS environment variables take precedence.
@@ -2283,8 +2288,8 @@ def claude_turn_done_with_monitors_only(text: str, transcript_path: str) -> bool
     """Claude reports ``busy`` while a background monitor is armed, even after the
     turn has ended and the reply is waiting for the user.  A monitor only
     watches; the answer is complete.  Background shells, sub-agents and
-    workflows are still work in progress (the win27 case: "done · 2 shells
-    still running" was mistaken for finished), so they keep ``busy``."""
+    workflows are still work in progress ("done · 2 shells still running" is
+    not finished), so they keep ``busy``."""
     counts = claude_background_counts(text)
     if not counts["monitor"] or counts["shell"] or not transcript_path:
         return False
@@ -2512,6 +2517,9 @@ def merge_prefs(patch: dict[str, object]) -> dict[str, object]:
         # must not undo a rename made from the CLI or another device.
         if "paneAliases" in prefs:
             safe_patch.pop("paneAliases", None)
+        # Archive runs are written only by the server (/api/archive-request and
+        # its result check); a client echoing an old prefs snapshot must not undo them.
+        safe_patch.pop(ARCHIVE_RUNS_KEY, None)
         prefs.update(safe_patch)
         prefs["categories"] = normalized_category_names(prefs.get("categories"))
         _prune_empty_custom_categories_unlocked(prefs)
@@ -3248,6 +3256,428 @@ def active_pane(session: str = DEFAULT_SESSION) -> dict[str, object] | None:
         "kind": classify(command, title, window_name),
         "project": project_from(cwd, window_name, title),
     }
+
+
+# ---------------------------------------------------------------------------
+# 卡片 <-> 网页终端互跳
+#
+# A web terminal such as ttyd runs ``tmux attach -t <session>`` for every
+# browser connection, so its tmux client is a direct child of the ttyd process.
+# When ttyd attaches to the shared session, the current window is a property of
+# the *session*: switching it moves every client on that session.  If ttyd is
+# ever changed to a grouped session per connection, only those sessions move.
+
+_SESSION_UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+
+
+def _parent_is_ttyd(pid: str) -> bool:
+    """Whether this tmux client process was spawned by ttyd (its parent's comm)."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+        ppid = stat.rsplit(")", 1)[1].split()[1]
+        return Path(f"/proc/{ppid}/comm").read_text(encoding="utf-8").strip() == "ttyd"
+    except (OSError, IndexError):
+        return False
+
+
+def terminal_clients(session: str = "") -> list[dict[str, object]]:
+    """Every tmux client showing ``session`` or a session grouped with it."""
+    session = session or DEFAULT_SESSION  # read at call time: tests point it at a private server
+    # tmux 3.7 answers display-message for a target it cannot resolve with an
+    # empty format and exit 0, so existence is checked on its own; "=name:" (with
+    # the colon) is the exact-match session target.
+    exists = run_tmux(["has-session", "-t", f"={session}"])
+    if exists.returncode != 0:
+        raise RuntimeError(exists.stderr.strip() or f"tmux session not found: {session}")
+    group_cp = run_tmux(["display-message", "-p", "-t", f"={session}:", "#{session_group}"])
+    if group_cp.returncode != 0:
+        raise RuntimeError(group_cp.stderr.strip() or f"tmux session not found: {session}")
+    group = group_cp.stdout.strip()
+    fmt = "\t".join([
+        "#{client_tty}", "#{client_pid}", "#{session_name}", "#{session_group}",
+        "#{window_index}", "#{window_name}", "#{pane_id}", "#{client_activity}",
+    ])
+    cp = run_tmux(["list-clients", "-F", fmt])
+    if cp.returncode != 0:
+        raise RuntimeError(cp.stderr.strip() or "tmux list-clients failed")
+    clients: list[dict[str, object]] = []
+    for line in cp.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 8:
+            continue
+        tty, pid, client_session, client_group, win, window_name, pane_id, activity = parts
+        if client_session != session and not (group and client_group == group):
+            continue
+        try:
+            activity_iso = datetime.fromtimestamp(int(activity), tz=timezone.utc).isoformat()
+        except ValueError:
+            activity_iso = ""
+        clients.append({
+            "tty": tty,
+            "pid": pid,
+            "session": client_session,
+            "window_index": int(win) if win.isdigit() else None,
+            "window_name": window_name,
+            "pane_id": pane_id,
+            "last_activity": activity_iso,
+            "activity_ts": int(activity) if activity.isdigit() else 0,
+            "ttyd": _parent_is_ttyd(pid),
+        })
+    return clients
+
+
+def pane_ai_identity(pane: Pane) -> dict[str, str]:
+    """provider/session_id of the AI in this pane, from the sources Cards already trusts:
+    Claude's own ``claude agents`` record (by pid), else the SessionStart stamp; Codex's
+    open rollout file when the pane carries no stamp."""
+    provider = pane.kind.lower() if pane.kind in {"Claude", "Codex"} else ""
+    session_id = pane.ai_session_id
+    source = "pane-stamp" if session_id else ""
+    error = ""
+    if pane.kind == "Claude" and pane.ai_alive:
+        official = str((official_claude_record(pane) or {}).get("sessionId") or "")
+        if official:
+            session_id, source = official, "claude-agents"
+    elif pane.kind == "Codex" and pane.ai_alive and not session_id:
+        try:
+            rollout, _meta = codex_rollout_for_pane(pane, capture(pane.pane_id, history=80))
+        except Exception as exc:  # noqa: BLE001 - reported in the payload, not hidden
+            rollout, error = None, f"codex rollout lookup failed: {exc}"
+        match = _SESSION_UUID_RE.search(Path(rollout).stem) if rollout else None
+        if match:
+            session_id, source = match.group(0), "codex-rollout"
+    identity = {"provider": provider, "session_id": session_id, "session_source": source}
+    if error:
+        identity["identity_error"] = error
+    return identity
+
+
+def terminal_pane_view(pane: Pane) -> dict[str, object]:
+    return {
+        "session": pane.session,
+        "window_index": pane.window_index,
+        "window_name": pane.window_name,
+        "pane_id": pane.pane_id,
+        "pane_pid": pane.pane_pid,
+        "pane_current_path": pane.cwd,
+        "kind": pane.kind,
+        **pane_ai_identity(pane),
+    }
+
+
+TERMINAL_MATCH_FIELDS = ("window_index", "window_name", "pane_id", "pane_pid", "pane_current_path", "provider", "session_id")
+
+
+def terminal_match(cards: Mapping[str, object], terminal: Mapping[str, object]) -> dict[str, object]:
+    """Compare the pane Cards is showing with the pane the terminal shows."""
+    mismatches = [
+        {"field": field, "cards": cards.get(field), "terminal": terminal.get(field)}
+        for field in TERMINAL_MATCH_FIELDS
+        if cards.get(field) != terminal.get(field)
+    ]
+    return {"match": not mismatches, "mismatches": mismatches}
+
+
+def terminal_status(pane_id: str = "", session: str = "") -> dict[str, object]:
+    """Where the root ttyd terminal is, who else watches the session, and (with
+    ``pane_id``) whether Cards and the terminal show the same pane."""
+    session = session or DEFAULT_SESSION  # read at call time: tests point it at a private server
+    if pane_id and not PANE_ID_RE.fullmatch(pane_id):
+        raise ValueError("pane must look like %12")
+    clients = terminal_clients(session)
+    ttyd_clients = [client for client in clients if client["ttyd"]]
+    if ttyd_clients:
+        latest = max(ttyd_clients, key=lambda client: str(client["last_activity"]))
+        source, focus_pane = "ttyd-client", str(latest["pane_id"])
+    else:
+        # No browser is connected: the next ttyd connection attaches to the
+        # session and shows its current pane.
+        current = active_pane(session)
+        if current is None:
+            raise RuntimeError(f"active pane of {session} not found")
+        source, focus_pane = "session-active-pane", str(current["pane_id"])
+    focus = pane_by_id(focus_pane)
+    if focus is None:
+        raise RuntimeError(f"terminal pane {focus_pane} vanished")
+    terminal = {"source": source, **terminal_pane_view(focus)}
+    payload: dict[str, object] = {
+        "session": session,
+        "attach_mode": "grouped" if any(c["session"] != session for c in ttyd_clients) else "shared",
+        "terminal": terminal,
+        "ttyd_clients": len(ttyd_clients),
+        "clients": clients,
+        "captured_at": now_iso(),
+    }
+    if pane_id:
+        target = pane_by_id(pane_id)
+        if target is None:
+            raise FileNotFoundError(f"pane not found or not in {session}: {pane_id}")
+        cards = terminal_pane_view(target)
+        payload["cards"] = cards
+        payload.update(terminal_match(cards, terminal))
+    return payload
+
+
+def terminal_focus(
+    pane_id: str, expected_pid: str = "", expected_start_time: str = "", session: str = "",
+) -> dict[str, object]:
+    """Point the root ttyd terminal at ``pane_id``.
+
+    Grouped ttyd sessions are switched on their own; a ttyd attached directly
+    to the shared session can only be moved by switching that session, which
+    moves every client on it -- the reply lists them."""
+    session = session or DEFAULT_SESSION
+    if not PANE_ID_RE.fullmatch(pane_id or ""):
+        raise ValueError("pane must look like %12")
+    pane = pane_by_id(pane_id)
+    if pane is None:
+        raise FileNotFoundError(f"pane not found or not in {session}: {pane_id}")
+    validate_pane_instance(pane, expected_pid, expected_start_time)
+    clients = terminal_clients(session)
+    sessions = sorted({str(c["session"]) for c in clients if c["ttyd"]}) or [session]
+    # The in-Cards terminal view may have sized this window for a browser
+    # (resize-window sets window-size=manual); hand it back to the real clients.
+    restored = run_tmux(["set-option", "-w", "-t", pane.pane_id, "window-size", "latest"])
+    if restored.returncode != 0:
+        raise RuntimeError(restored.stderr.strip() or "tmux set-option window-size failed")
+    for target_session in sessions:
+        for args in (
+            ["select-window", "-t", f"={target_session}:{pane.window_index}"],
+            ["select-pane", "-t", pane.pane_id],
+        ):
+            cp = run_tmux(args)
+            if cp.returncode != 0:
+                raise RuntimeError(cp.stderr.strip() or f"tmux {args[0]} failed")
+        shown = run_tmux(["display-message", "-p", "-t", f"={target_session}:", "#{pane_id}"])
+        if shown.returncode != 0 or shown.stdout.strip() != pane.pane_id:
+            raise RuntimeError(
+                f"{target_session} shows {shown.stdout.strip() or '?'} after switching, expected {pane.pane_id}"
+            )
+    affected = [
+        {"tty": c["tty"], "session": c["session"], "ttyd": c["ttyd"]}
+        for c in clients if c["session"] in sessions
+    ]
+    shared = session in sessions
+    note = (
+        f"ttyd 直接 attach 共享会话 {session}，切换的是整个会话：挂在它上面的 {len(affected)} 个客户端都跟着切了"
+        if shared else f"只切了 ttyd 自己的分组会话 {', '.join(sessions)}"
+    )
+    return {
+        "ok": True,
+        "pane": pane.pane_id,
+        "window_index": pane.window_index,
+        "window_name": pane.window_name,
+        "mode": "shared" if shared else "grouped",
+        "sessions": sessions,
+        "affected_clients": affected,
+        "note": note,
+    }
+
+
+TERMINAL_CAPTURE_MAX_LINES = 3000
+_TERMINAL_HEIGHT_HINT: dict[str, int] = {}
+
+
+_SGR_TAIL_RE = re.compile(r"\x1b\[[0-9;:]*m\Z")
+
+
+def _strip_trailing_spaces(row: str) -> str:
+    """Drop trailing spaces, also those hidden before trailing SGR codes (kept).
+
+    Linear on purpose: the obvious regex `` +((?:SGR)*)$`` backtracks over every
+    run of spaces in a 361-column row and cost ~37 ms per capture."""
+    tail: list[str] = []
+    body = row
+    while True:
+        stripped = body.rstrip(" ")
+        if stripped != body:
+            body = stripped
+            continue
+        if body.endswith("m"):
+            cut = body.rfind("\x1b[")
+            if cut >= 0 and _SGR_TAIL_RE.match(body, cut):
+                tail.append(body[cut:])
+                body = body[:cut]
+                continue
+        break
+    return body + "".join(reversed(tail))
+
+
+def terminal_capture(
+    pane_id: str, lines: int | None = None, before: int | None = None, if_hash: str = "", join: bool = False,
+) -> dict[str, object]:
+    """GET /api/terminal/capture: the pane's real terminal grid with ANSI colours.
+
+    Rows are numbered absolutely from the oldest history row (0) to the last
+    screen row (``total_lines - 1``); tmux's own coordinate is ``row - history_size``.
+    Without ``before`` the newest ``lines`` rows are returned; with ``before`` the
+    ``lines`` rows just above that row (for loading older history while scrolling up).
+    Read-only: this never selects a window, so no tmux client moves.
+
+    ``join`` adds ``capture-pane -J``: rows tmux soft-wrapped are joined back into
+    one logical line (so a narrow browser can re-wrap them) and trailing spaces
+    are dropped.  ``first_line``/``end_line`` still count physical rows, but the
+    returned list then has one entry per logical line (fewer entries), and the
+    first entry may be the tail of a line that started above ``first_line``."""
+    if not PANE_ID_RE.fullmatch(pane_id or ""):
+        raise ValueError("pane must look like %12")
+    fmt = "\t".join([
+        "#{pane_id}", "#{session_name}", "#{window_index}", "#{pane_width}", "#{pane_height}",
+        "#{history_size}", "#{history_limit}", "#{cursor_x}", "#{cursor_y}", "#{cursor_flag}",
+        "#{alternate_on}", "#{pane_in_mode}",
+    ])
+
+    def parse_meta(line: str) -> list[str]:
+        parts = line.rstrip("\r").split("\t")
+        if len(parts) != 12 or parts[0] != pane_id or (DEFAULT_SESSION and parts[1] != DEFAULT_SESSION):
+            raise FileNotFoundError(f"pane not found or not in {DEFAULT_SESSION}: {pane_id}")
+        return parts
+
+    def capture_args(first: int, last: int) -> list[str]:
+        return ["capture-pane", "-p", "-e", *(["-J"] if join else []), "-t", pane_id, "-S", str(first), "-E", str(last)]
+
+    def split_rows(text: str) -> list[str]:
+        rows = text.split("\n")
+        if rows and rows[-1] == "":
+            rows.pop()  # the trailing newline of the last row
+        return [_strip_trailing_spaces(row) for row in rows] if join else rows
+
+    def plan(parts: list[str]) -> tuple[int, int, int]:
+        height, history_size = int(parts[4]), int(parts[5])
+        total = history_size + height
+        count = max(1, min(TERMINAL_CAPTURE_MAX_LINES, int(lines) if lines else total))
+        end = total if before is None else max(0, min(total, int(before)))
+        return total, max(0, end - count), end
+
+    def rows_fit(rows: list[str], start: int, end: int) -> bool:
+        return len(rows) == end - start or (join and len(rows) <= end - start)
+
+    # One tmux invocation runs "geometry ; capture" (or "capture ; geometry")
+    # atomically, so new output cannot scroll rows between the two and shift
+    # the numbering.  The newest-rows request -- every poll -- uses the pane
+    # height from the previous call and is a single subprocess when it still
+    # matches; otherwise read the geometry first and verify it after capturing.
+    parts: list[str] = []
+    rows: list[str] = []
+    hint = _TERMINAL_HEIGHT_HINT.get(pane_id)
+    done = False
+    if before is None and hint:
+        count = max(1, min(TERMINAL_CAPTURE_MAX_LINES, int(lines) if lines else TERMINAL_CAPTURE_MAX_LINES))
+        cp = run_tmux(["display-message", "-p", "-t", pane_id, "-F", fmt, ";", *capture_args(hint - count, hint - 1)])
+        if cp.returncode == 0:
+            first, _, rest = cp.stdout.partition("\n")
+            parts = parse_meta(first)
+            total, start, end = plan(parts)
+            rows = split_rows(rest)
+            done = int(parts[4]) == hint and bool(lines) and rows_fit(rows, start, end)
+    for _attempt in range(3 if not done else 0):
+        meta = run_tmux(["display-message", "-p", "-t", pane_id, "-F", fmt])
+        parts = parse_meta(meta.stdout.split("\n", 1)[0] if meta.returncode == 0 else "")
+        total, start, end = plan(parts)
+        history_size = int(parts[5])
+        if end <= start:
+            rows = []
+            break
+        cp = run_tmux([*capture_args(start - history_size, end - 1 - history_size), ";",
+                       "display-message", "-p", "-t", pane_id, "-F", fmt])
+        if cp.returncode != 0:
+            raise RuntimeError(cp.stderr.strip() or f"capture-pane failed: {pane_id}")
+        body, _, after_line = cp.stdout.rstrip("\n").rpartition("\n")
+        after = parse_meta(after_line)
+        rows = split_rows(body + "\n" if body else "")
+        if after[3:7] == parts[3:7] and rows_fit(rows, start, end):
+            break
+    else:
+        if not done:
+            raise RuntimeError(f"pane {pane_id} kept scrolling during capture; try again")
+    _TERMINAL_HEIGHT_HINT[pane_id] = int(parts[4])
+    width, height, history_size, history_limit, cursor_x, cursor_y = (int(value) for value in parts[3:9])
+    cursor = {"x": cursor_x, "y": cursor_y, "visible": parts[9] == "1"}
+    digest = hashlib.sha256(
+        json.dumps([start, end, width, height, cursor, join, rows], ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    payload: dict[str, object] = {
+        "pane": pane_id,
+        "window_index": int(parts[2]),
+        "width": width,
+        "height": height,
+        "history_size": history_size,
+        "history_limit": history_limit,
+        "total_lines": total,
+        "first_line": start,
+        "end_line": end,
+        "cursor": cursor,
+        "alternate_on": parts[10] == "1",
+        "in_mode": parts[11] == "1",
+        "joined": join,
+        "hash": digest,
+        "captured_at": now_iso(),
+    }
+    if if_hash and if_hash == digest:
+        payload["unchanged"] = True
+    else:
+        payload["lines"] = rows
+    return payload
+
+
+TERMINAL_COLS_RANGE = (40, 250)
+# Claude Code's fullscreen UI opens a code-changes side panel (diff panel) at >= 110 columns,
+# splitting the screen in two; Claude windows get at most 109 so it never opens
+# (https://code.claude.com/docs/en/interactive-mode.md, "Diff panel").
+CLAUDE_MAX_COLS = 109
+TERMINAL_ROWS_RANGE = (12, 120)
+TERMINAL_CLIENT_ACTIVE_SECONDS = 30
+
+
+def terminal_resize(pane_id: str, cols: object, rows: object, session: str = "") -> dict[str, object]:
+    """POST /api/terminal/resize: size the pane's window for the in-Cards terminal view.
+
+    Like a tmux client, the viewer's size decides the window size, so Claude /
+    Codex lay their TUI out for the browser instead of a 361-column terminal.
+    ``resize-window`` sets the window's ``window-size`` to manual (tmux manual);
+    ``terminal_focus`` puts it back to ``latest`` when the real terminal takes over.
+    A real client (ttyd/SSH) showing this window with activity in the last 30 s
+    wins: nothing is resized and the reason is returned."""
+    session = session or DEFAULT_SESSION  # read at call time: tests point it at a private server
+    if not PANE_ID_RE.fullmatch(pane_id or ""):
+        raise ValueError("pane must look like %12")
+    if isinstance(cols, bool) or isinstance(rows, bool) or not isinstance(cols, int) or not isinstance(rows, int):
+        raise ValueError("cols and rows must be integers")
+    if not TERMINAL_COLS_RANGE[0] <= cols <= TERMINAL_COLS_RANGE[1]:
+        raise ValueError(f"cols must be {TERMINAL_COLS_RANGE[0]}..{TERMINAL_COLS_RANGE[1]}")
+    if not TERMINAL_ROWS_RANGE[0] <= rows <= TERMINAL_ROWS_RANGE[1]:
+        raise ValueError(f"rows must be {TERMINAL_ROWS_RANGE[0]}..{TERMINAL_ROWS_RANGE[1]}")
+    pane = pane_by_id(pane_id)
+    if pane is None:
+        raise FileNotFoundError(f"pane not found or not in {session}: {pane_id}")
+    clamped = pane.kind == "Claude" and cols > CLAUDE_MAX_COLS
+    if clamped:
+        cols = CLAUDE_MAX_COLS
+    now = time.time()
+    watching = [
+        {"tty": c["tty"], "ttyd": c["ttyd"], "last_activity": c["last_activity"]}
+        for c in terminal_clients(session)
+        if c["window_index"] == pane.window_index and now - float(c.get("activity_ts") or 0) < TERMINAL_CLIENT_ACTIVE_SECONDS
+    ]
+    fmt = "#{window_id}\t#{window_width}\t#{window_height}"
+    before = run_tmux(["display-message", "-p", "-t", pane_id, fmt])
+    if before.returncode != 0 or before.stdout.count("\t") != 2:
+        raise RuntimeError(before.stderr.strip() or f"cannot read the window of {pane_id}")
+    window_id, width, height = before.stdout.strip().split("\t")
+    result: dict[str, object] = {"pane": pane_id, "window": window_id, "cols": int(width), "rows": int(height),
+                                 "clamped_for_claude": clamped}
+    if watching:
+        return {**result, "resized": False, "reason": "a real terminal client is using this window", "clients": watching}
+    if (int(width), int(height)) == (cols, rows):
+        return {**result, "resized": False, "reason": "already this size"}
+    cp = run_tmux(["resize-window", "-t", window_id, "-x", str(cols), "-y", str(rows)])
+    if cp.returncode != 0:
+        raise RuntimeError(cp.stderr.strip() or "tmux resize-window failed")
+    after = run_tmux(["display-message", "-p", "-t", pane_id, fmt])
+    _, new_width, new_height = after.stdout.strip().split("\t")
+    if (int(new_width), int(new_height)) != (cols, rows):
+        raise RuntimeError(f"window is {new_width}x{new_height} after resizing to {cols}x{rows}")
+    return {**result, "cols": cols, "rows": rows, "resized": True, "previous": [int(width), int(height)]}
 
 
 def validate_input_text(text: str) -> str:
@@ -4116,6 +4546,1093 @@ def _panes_response_cached(session: str) -> list[dict[str, object]]:
     return _panes_response_snapshot(session).panes
 
 
+# ---------------------------------------------------------------------------
+# 卡片 Git 状态
+#
+# /api/panes 是网页轮询热路径, 这里绝不同步跑 git: build_panes_response() 只读
+# 按 git 根目录缓存的结果 (TTL 60s, 多个 pane 共用), 缺失/过期时把刷新交给
+# 后台线程池, 本轮先返回旧值或 state="pending"。每条 git 命令 timeout 2s, 超时
+# 或失败缓存 state="unknown" 到下一个 TTL, 不会每轮重试拖垮机器。
+# 进行中任务来自可选的计划集成 (CARDS_TOP_CLI 的 ``plan list``), 按 plan mtime
+# 缓存, 同样在后台线程里刷新。
+# ---------------------------------------------------------------------------
+GIT_STATUS_TTL = 60.0
+GIT_ROOT_TTL = 60.0
+GIT_CMD_TIMEOUT = 2.0
+GIT_DIRTY_CAP = 999
+GIT_SUBJECT_MAX = 60
+_GIT_LOCK = threading.Lock()
+_GIT_STATUS_CACHE: dict[str, tuple[float, dict[str, object]]] = {}
+_GIT_STATUS_PENDING: set[str] = set()
+_GIT_ROOT_CACHE: dict[str, tuple[float, str | None]] = {}
+_GIT_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cards-git")
+_TOP_PLAN_CACHE: dict[str, tuple[int, dict[str, object] | None]] = {}
+
+
+def git_root_for_cwd(cwd: str) -> str | None:
+    """Nearest ancestor holding ``.git`` (dir, or file for worktrees/submodules).
+
+    Pure stat calls, no subprocess, cached per cwd so the hot path stays cheap."""
+    if not cwd:
+        return None
+    now = time.monotonic()
+    with _GIT_LOCK:
+        hit = _GIT_ROOT_CACHE.get(cwd)
+        if hit and now - hit[0] < GIT_ROOT_TTL:
+            return hit[1]
+    root: str | None = None
+    path = os.path.abspath(cwd)
+    while True:
+        if os.path.exists(os.path.join(path, ".git")):
+            root = path
+            break
+        parent = os.path.dirname(path)
+        if parent == path:
+            break
+        path = parent
+    with _GIT_LOCK:
+        _GIT_ROOT_CACHE[cwd] = (now, root)
+    return root
+
+
+def _run_git(root: str, *args: str) -> str:
+    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"}
+    result = subprocess.run(
+        ["git", "-C", root, *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=GIT_CMD_TIMEOUT,
+        env=env,
+        stdin=subprocess.DEVNULL,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip().splitlines()
+        raise RuntimeError(f"git {args[0]} exit {result.returncode}: {detail[0] if detail else ''}"[:200])
+    return result.stdout
+
+
+def compute_git_status(root: str) -> dict[str, object]:
+    """Run the (bounded) git commands for one repository root.
+
+    Expected failures (timeout, not a repo, dubious ownership, git missing)
+    become ``state="unknown"`` with the reason in ``error``."""
+    status: dict[str, object] = {
+        "root": root,
+        "state": "ok",
+        "branch": None,
+        "dirty": None,
+        "modified": None,
+        "untracked": None,
+        "ahead": None,
+        "has_remote": None,
+        "last_commit_ts": None,
+        "last_commit_subject": "",
+    }
+    try:
+        out = _run_git(root, "status", "--porcelain=v2", "--branch", "--untracked-files=normal")
+        # porcelain v2: "1 "/"2 "/"u " = tracked entry (changed, renamed/copied,
+        # unmerged); "? " = untracked. ``dirty`` stays as their capped sum for
+        # older front ends.
+        modified = 0
+        untracked = 0
+        oid = ""
+        head = ""
+        upstream = False
+        for line in out.splitlines():
+            if not line.startswith("#"):
+                if line.startswith(("1 ", "2 ", "u ")):
+                    modified += 1
+                elif line.startswith("? "):
+                    untracked += 1
+                continue
+            parts = line.split()
+            if len(parts) < 3:
+                continue
+            if parts[1] == "branch.oid":
+                oid = parts[2]
+            elif parts[1] == "branch.head":
+                head = parts[2]
+            elif parts[1] == "branch.upstream":
+                upstream = True
+            elif parts[1] == "branch.ab" and parts[2].startswith("+"):
+                status["ahead"] = int(parts[2][1:])
+        if not upstream:
+            status["ahead"] = None
+        status["modified"] = min(modified, GIT_DIRTY_CAP)
+        status["untracked"] = min(untracked, GIT_DIRTY_CAP)
+        status["dirty"] = min(modified + untracked, GIT_DIRTY_CAP)
+        status["branch"] = f"@{oid[:7]}" if head == "(detached)" and oid else (head or None)
+        status["has_remote"] = bool(_run_git(root, "remote").strip())
+        if oid and oid != "(initial)":
+            ts, _, subject = _run_git(root, "log", "-1", "--format=%ct%x00%s").strip().partition("\x00")
+            status["last_commit_ts"] = int(ts) if ts.isdigit() else None
+            status["last_commit_subject"] = subject[:GIT_SUBJECT_MAX]
+    except subprocess.TimeoutExpired as exc:
+        status["state"] = "unknown"
+        status["error"] = f"timeout after {GIT_CMD_TIMEOUT:g}s: git {exc.cmd[3] if len(exc.cmd) > 3 else ''}".strip()
+    except (OSError, RuntimeError, ValueError) as exc:
+        status["state"] = "unknown"
+        status["error"] = str(exc)[:200]
+    return status
+
+
+def _refresh_git_status(root: str) -> None:
+    try:
+        status = compute_git_status(root)
+    except Exception as exc:  # noqa: BLE001 - unexpected bug: log loudly, cache unknown
+        sys.stderr.write(f"git status refresh crashed for {root!r}: {exc!r}\n")
+        status = {"root": root, "state": "unknown", "error": f"{type(exc).__name__}: {exc}"[:200]}
+    with _GIT_LOCK:
+        _GIT_STATUS_CACHE[root] = (time.monotonic(), status)
+        _GIT_STATUS_PENDING.discard(root)
+
+
+def cached_git_status(root: str) -> dict[str, object] | None:
+    """Non-blocking read of the per-root cache; schedules a background refresh
+    when the entry is missing or older than GIT_STATUS_TTL."""
+    now = time.monotonic()
+    submit = False
+    with _GIT_LOCK:
+        hit = _GIT_STATUS_CACHE.get(root)
+        if (hit is None or now - hit[0] >= GIT_STATUS_TTL) and root not in _GIT_STATUS_PENDING:
+            _GIT_STATUS_PENDING.add(root)
+            submit = True
+    if submit:
+        try:
+            _GIT_EXECUTOR.submit(_refresh_git_status, root)
+        except RuntimeError as exc:  # interpreter shutting down
+            with _GIT_LOCK:
+                _GIT_STATUS_PENDING.discard(root)
+            sys.stderr.write(f"could not schedule git status for {root!r}: {exc}\n")
+    return hit[1] if hit else None
+
+
+# ---------------------------------------------------------------------------
+# Optional plan / archive integration (share-top style task plans)
+#
+# The plan panel, the task title on the card Git row, triage and the one-click
+# archive are driven by an external plan CLI; Cards never parses or edits a
+# plan itself.  Without configuration those features are off: the buttons are
+# greyed out with the reason and the endpoints answer 501.  See
+# docs/plan-integration.md for the JSON contract.
+#
+#   CARDS_TOP_CLI         plan CLI (``*.py`` runs with this Python, anything
+#                         else is executed directly)
+#   CARDS_ARCHIVE_PROMPT  text file sent to the pane's AI when 归档 is pressed
+#   CARDS_TOP_PLAN_FILES  ``:``-separated plan locations relative to a project
+#                         directory (first existing wins)
+# ---------------------------------------------------------------------------
+def _optional_path(name: str) -> Path | None:
+    value = os.environ.get(name, "").strip()
+    return Path(value).expanduser() if value else None
+
+
+PLAN_CLI = _optional_path("CARDS_TOP_CLI")
+ARCHIVE_PROMPT = _optional_path("CARDS_ARCHIVE_PROMPT")
+TOP_PLAN_FILES = tuple(
+    rel.strip() for rel in os.environ.get(
+        "CARDS_TOP_PLAN_FILES", "_wiki-methodology/_top/_task_plan.md:wiki-methodology/top/task_plan.md",
+    ).split(":") if rel.strip()
+)
+PLAN_NOT_CONFIGURED = "需要配置 share-top 集成（设置 CARDS_TOP_CLI，见 docs/plan-integration.md）"
+ARCHIVE_NOT_CONFIGURED = "需要配置 share-top 集成（设置 CARDS_ARCHIVE_PROMPT，见 docs/plan-integration.md）"
+_TOP_PLAN_PENDING: set[str] = set()
+
+
+# Where the plan search stops when the pane is not in a Git repository: the
+# project directory directly under ~/projects, else the home directory.
+PROJECTS_DIR = Path(os.environ.get("TMUX_CARD_PROJECTS_DIR") or (Path.home() / "projects"))
+PLAN_MISSING_REASON = "这个项目还没有计划（让 AI 用 plan 命令初始化一份）"
+
+
+def _under(path: str, root: str) -> bool:
+    root = root.rstrip(os.sep) or os.sep
+    return path == root or path.startswith(root + os.sep)
+
+
+def plan_search_root(cwd: str, git_root: str | None = None) -> str | None:
+    """Upper bound of the plan search for a pane: its Git root, or -- without
+    Git -- ``~/projects/<project>`` (or the home directory, or cwd itself)."""
+    if git_root:
+        return git_root
+    if not cwd:
+        return None
+    path = os.path.abspath(cwd)
+    projects = os.path.abspath(str(PROJECTS_DIR))
+    if path != projects and _under(path, projects):
+        return os.path.join(projects, os.path.relpath(path, projects).split(os.sep, 1)[0])
+    home = os.path.abspath(str(Path.home()))
+    return home if _under(path, home) else path
+
+
+def find_top_plan(cwd: str, root: str) -> tuple[str, str] | None:
+    """``(project_dir, plan_path)`` of the nearest plan between cwd and the git
+    root (TOP_PLAN_FILES, first existing wins); pure stat calls.  None while the
+    plan integration is not configured."""
+    if PLAN_CLI is None or not root:
+        return None
+    path = os.path.abspath(cwd) if cwd else root
+    if not (path == root or path.startswith(root.rstrip(os.sep) + os.sep)):
+        path = root
+    while True:
+        for rel in TOP_PLAN_FILES:
+            plan = os.path.join(path, rel)
+            if os.path.isfile(plan):
+                return path, plan
+        if path == root:
+            return None
+        parent = os.path.dirname(path)
+        if parent == path:
+            return None
+        path = parent
+
+
+def refresh_top_plan_index(project_dir: str, plan: str, mtime: int) -> dict[str, object] | None:
+    """Ask the plan CLI (``plan list``) for the plan's tasks and cache the summary
+    under the plan's mtime: first in_progress id + id -> (title, first gate)."""
+    index: dict[str, object] | None
+    try:
+        listing = run_plan_cli(["plan", "list", project_dir])
+        if "error" in listing:
+            raise PlanApiError(str(listing["error"]))
+        items = [item for item in listing.get("items") or [] if isinstance(item, dict) and item.get("id")]
+        index = {
+            "active": next((str(item["id"]) for item in items if item.get("state") == "in_progress"), None),
+            "items": {
+                str(item["id"]): (str(item.get("title") or ""), str((item.get("gates") or [""])[0] or ""))
+                for item in items
+            },
+        }
+    except Exception as exc:  # noqa: BLE001 - background job: null index, logged once per mtime
+        sys.stderr.write(f"cannot list plan {plan}: {exc!r}\n")
+        index = None
+    with _GIT_LOCK:
+        _TOP_PLAN_CACHE[plan] = (mtime, index)
+        _TOP_PLAN_PENDING.discard(plan)
+    return index
+
+
+def _top_plan_index(project_dir: str, plan: str) -> dict[str, object] | None:
+    """Non-blocking read of the per-plan summary; a new mtime schedules
+    refresh_top_plan_index on the git thread pool (the old summary, or None,
+    is returned meanwhile)."""
+    if PLAN_CLI is None:
+        return None
+    try:
+        mtime = os.stat(plan).st_mtime_ns
+    except OSError:
+        return None
+    with _GIT_LOCK:
+        hit = _TOP_PLAN_CACHE.get(plan)
+        if hit and hit[0] == mtime:
+            return hit[1]
+        submit = plan not in _TOP_PLAN_PENDING
+        _TOP_PLAN_PENDING.add(plan)
+    if submit:
+        try:
+            _GIT_EXECUTOR.submit(refresh_top_plan_index, project_dir, plan, mtime)
+        except RuntimeError as exc:  # interpreter shutting down
+            with _GIT_LOCK:
+                _TOP_PLAN_PENDING.discard(plan)
+            sys.stderr.write(f"could not schedule plan index for {plan!r}: {exc}\n")
+    return hit[1] if hit else None
+
+
+def top_active_task_info(
+    cwd: str, root: str, branch: object = None, found: tuple[str, str] | None | bool = False,
+) -> dict[str, str] | None:
+    """In-progress task for a pane as ``{"id", "title", "gate"}``: a
+    ``task/<ID>`` branch first (task worktrees), else the first in_progress item
+    of the nearest plan between cwd and the git root.  ``found`` lets a caller
+    reuse its own find_top_plan() result."""
+    if PLAN_CLI is None:
+        return None
+    if found is False:
+        found = find_top_plan(cwd, root)
+    index = _top_plan_index(*found) if found else None
+    task_id = None
+    if isinstance(branch, str) and branch.startswith("task/") and TOP_TASK_ID_RE.fullmatch(branch[5:]):
+        task_id = branch[5:]
+    elif index:
+        task_id = index["active"]
+    if not task_id:
+        return None
+    title, gate = (index or {}).get("items", {}).get(task_id, ("", ""))
+    return {"id": task_id, "title": title, "gate": gate}
+
+
+def top_active_task(cwd: str, root: str, branch: object = None) -> str | None:
+    """ID of the pane's in-progress TOP task (see top_active_task_info)."""
+    info = top_active_task_info(cwd, root, branch)
+    return info["id"] if info else None
+
+
+def pane_git_summary(cwd: str) -> dict[str, object] | None:
+    """``git`` field of one /api/panes item; None when cwd is not in a repo."""
+    root = git_root_for_cwd(cwd)
+    if root is None:
+        return None
+    status = cached_git_status(root)
+    summary: dict[str, object] = {
+        "root": root,
+        "state": "pending",
+        "branch": None,
+        "dirty": None,
+        "modified": None,
+        "untracked": None,
+        "ahead": None,
+        "has_remote": None,
+        "last_commit_age": None,
+        "last_commit_subject": "",
+        "task": None,
+        "task_title": None,
+        "task_gate": None,
+        "has_plan": False,
+    }
+    if status is not None:
+        for key in ("state", "branch", "dirty", "modified", "untracked", "ahead", "has_remote", "last_commit_subject", "error"):
+            if key in status:
+                summary[key] = status[key]
+        ts = status.get("last_commit_ts")
+        if isinstance(ts, int):
+            summary["last_commit_age"] = max(0, int(time.time()) - ts)
+    found = find_top_plan(cwd, root)
+    summary["has_plan"] = found is not None
+    info = top_active_task_info(cwd, root, summary.get("branch"), found)
+    if info:
+        summary["task"] = info["id"]
+        summary["task_title"] = info["title"] or None
+        summary["task_gate"] = info["gate"] or None
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# 卡片"计划"面板与一键归档 (可选集成, 见上面的 CARDS_TOP_CLI / CARDS_ARCHIVE_PROMPT)
+#
+# 计划只经外部 plan CLI 读写 (compare-and-swap、校验、留痕都在 CLI 里); 这里只做:
+# 由 pane 的 live cwd 解析项目 (绝不接受客户端路径)、白名单 action -> 参数列表
+# (不经 shell、带超时、stdin=/dev/null)、文本长度与控制字符校验、把 CLI 错误翻成
+# 中文。归档指令文本来自 CARDS_ARCHIVE_PROMPT 指向的文件, 走与 /api/send 相同的
+# 投递路径。未配置时这些接口返回 501。
+# ---------------------------------------------------------------------------
+PLAN_CLI_TIMEOUT = 10.0
+PLAN_TRACK_TIMEOUT = 60.0
+PLAN_TRACK_TTL = 60.0
+PLAN_RAW_LIMIT = 200_000
+PLAN_ACTIONS = ("add", "edit", "note", "start", "block", "cancel", "reopen")
+PLAN_NOTE_KINDS = ("progress", "fail", "learn")
+PLAN_FIELD_LIMITS = {"title": 200, "gate": 300, "reason": 300, "text": 300, "depends_on": 300}
+PLAN_FIELD_LABELS = {"title": "标题", "gate": "验收", "reason": "原因", "text": "内容", "depends_on": "前置任务"}
+PANE_ID_RE = re.compile(r"%\d+")
+TOP_TASK_ID_RE = re.compile(r"P\d+(?:\.[A-Za-z0-9]+)+")  # task ids such as P3.9.E1 (share-top's TASK_ID_RE)
+_PLAN_TRACK_CACHE: dict[str, tuple[float, dict[str, object]]] = {}
+_PLAN_FILE_FOR_PROJECT: dict[str, str] = {}
+
+
+class PlanApiError(RuntimeError):
+    """A plan request that must be answered with ``status`` and a Chinese message."""
+
+    def __init__(self, message: str, status: int = 400) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+def require_plan_cli() -> Path:
+    """The configured plan CLI; PlanApiError 501 when the integration is off."""
+    if PLAN_CLI is None:
+        raise PlanApiError(PLAN_NOT_CONFIGURED, status=501)
+    if not PLAN_CLI.is_file():
+        raise PlanApiError(f"CARDS_TOP_CLI 指向的文件不存在：{PLAN_CLI}", status=500)
+    return PLAN_CLI
+
+
+def run_plan_cli(args: list[str], timeout: float = PLAN_CLI_TIMEOUT) -> dict[str, object]:
+    """Run ``<CARDS_TOP_CLI> <args>`` (argument list, no shell) and parse its JSON."""
+    cli = require_plan_cli()
+    cmd = [sys.executable, str(cli), *args] if cli.suffix == ".py" else [str(cli), *args]
+    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0"}
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout, stdin=subprocess.DEVNULL, env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise PlanApiError(f"计划命令超时（{timeout:g} 秒）", status=504) from exc
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        detail = (result.stderr or result.stdout).strip().splitlines()
+        raise PlanApiError(
+            f"计划命令没有返回 JSON（exit {result.returncode}）：{detail[-1][:200] if detail else ''}", status=502,
+        ) from exc
+    if not isinstance(data, dict):
+        raise PlanApiError("计划命令返回的不是对象", status=502)
+    return data
+
+
+_PLAN_ERROR_TRANSLATIONS = (
+    (re.compile(r"changed concurrently"), "计划刚被别人改过，已刷新，请重试"),
+    (re.compile(r"duplicate task id: (\S+)"), "任务 ID 已存在：{0}"),
+    (re.compile(r"unknown dependency: (\S+)"), "前置任务不存在：{0}"),
+    (re.compile(r"unknown task id: (\S+)"), "任务不存在：{0}"),
+    (re.compile(r"only done/cancelled/blocked task can reopen: (\S+) is (\S+)"), "只有已完成、已取消或阻塞的任务能重开（{0} 现在是 {1}）"),
+)
+
+
+def plan_cli_failure(data: dict[str, object]) -> PlanApiError | None:
+    """None when a plan write succeeded, else the Chinese error to return."""
+    errors = [str(item) for item in (data.get("errors") or []) if item]
+    if data.get("error"):
+        errors.insert(0, str(data["error"]))
+    if "error" not in data and data.get("verdict") not in {"block", "broken"}:
+        return None
+    joined = "；".join(errors) or f"verdict={data.get('verdict')}"
+    for pattern, template in _PLAN_ERROR_TRANSLATIONS:
+        match = pattern.search(joined)
+        if match:
+            status = 409 if "concurrently" in pattern.pattern else 400
+            return PlanApiError(template.format(*match.groups()), status=status)
+    return PlanApiError(f"计划命令被拒绝：{joined[:400]}")
+
+
+def plan_context_for_pane(pane_id: str) -> dict[str, object]:
+    """Project + plan of a pane, resolved only from the pane's live tmux cwd."""
+    require_plan_cli()
+    pane_id = str(pane_id or "").strip()
+    if not PANE_ID_RE.fullmatch(pane_id):
+        raise PlanApiError("pane 参数无效")
+    pane = pane_by_id(pane_id)
+    if pane is None:
+        raise PlanApiError("窗口不存在或已关闭", status=404)
+    root = git_root_for_cwd(pane.cwd)
+    found = find_top_plan(pane.cwd, plan_search_root(pane.cwd, root) or "")
+    if found is None:
+        raise PlanApiError("这个窗口所在的项目没有任务计划", status=404)
+    project_dir, plan = found
+    return {"pane": pane, "root": root, "project_dir": project_dir, "plan": plan}
+
+
+def _plan_git_brief(root: str | None) -> dict[str, object]:
+    if not root:  # plan without a repository (an archive run may create one)
+        return {"state": "none", "branch": None, "modified": None, "untracked": None, "pending": None,
+                "ahead": None, "last_commit_age": None}
+    status = cached_git_status(root) or {}
+    modified, untracked = status.get("modified"), status.get("untracked")
+    pending = (modified or 0) + (untracked or 0) if (modified is not None or untracked is not None) else None
+    ts = status.get("last_commit_ts")
+    return {
+        "state": status.get("state", "pending"),
+        "branch": status.get("branch"),
+        "modified": modified,
+        "untracked": untracked,
+        "pending": pending,
+        "ahead": status.get("ahead"),
+        "last_commit_age": max(0, int(time.time()) - ts) if isinstance(ts, int) else None,
+    }
+
+
+def suggest_task_id(ids: list[str], phase_id: str = "") -> str:
+    """A free ID following the plan's own numbering: bump the trailing number of
+    the last direct child of the current phase (``P3.9.PMA14`` -> ``P3.9.PMA15``)."""
+    used = set(ids)
+    prefix = phase_id if phase_id and TOP_TASK_ID_RE.fullmatch(phase_id) else ""
+    siblings = [i for i in ids if prefix and i.startswith(prefix + ".") and "." not in i[len(prefix) + 1:]]
+    for base in reversed(siblings or [i for i in ids if not prefix]):
+        match = re.fullmatch(r"(.*?)(\d+)", base)
+        if not match:
+            continue
+        stem, number = match.group(1), int(match.group(2))
+        while f"{stem}{number}" in used:
+            number += 1
+        return f"{stem}{number}"
+    stem, number = f"{prefix or 'P1'}.T", 1
+    while f"{stem}{number}" in used:
+        number += 1
+    return f"{stem}{number}"
+
+
+PLAN_NOTE_SCAN_DAYS = 60
+PLAN_NOTES_PER_TASK = 5
+PLAN_NOTES_MAX_BYTES = 2_000_000
+PLAN_NOTE_TEXT_LIMIT = 400
+PLAN_LOG_NAME_RE = re.compile(r"(\d{4}-\d{2}-\d{2})-plan\.md")
+
+
+def plan_log_files(plan_file: str, today: datetime | None = None) -> list[Path]:
+    """Daily ``plan note`` logs of the last PLAN_NOTE_SCAN_DAYS days, oldest first
+    (next to the plan: ``_top/_logs`` or ``<plan dir>/logs``)."""
+    top = Path(plan_file).parent
+    log_dir = top / ("_logs" if top.name == "_top" else "logs")
+    cutoff = ((today or datetime.now()) - timedelta(days=PLAN_NOTE_SCAN_DAYS)).strftime("%Y-%m-%d")
+    try:
+        names = sorted(os.listdir(log_dir))
+    except OSError:
+        return []
+    return [log_dir / name for name in names
+            if (match := PLAN_LOG_NAME_RE.fullmatch(name)) and match.group(1) >= cutoff]
+
+
+def plan_notes_token(plan_file: str, today: datetime | None = None) -> str:
+    """Newest mtime of the scanned logs: lets an unchanged poll skip reading them."""
+    newest = 0
+    for path in plan_log_files(plan_file, today):
+        try:
+            newest = max(newest, path.stat().st_mtime_ns)
+        except OSError:
+            continue
+    return str(newest)
+
+
+def plan_notes_by_task(plan_file: str, today: datetime | None = None) -> tuple[dict[str, list[dict[str, str]]], bool, str]:
+    """``(notes_by_task, truncated, notes_mtime_ns)`` from the plan's daily logs.
+
+    Line format written by the plan CLI's ``plan note`` (docs/plan-integration.md):
+    ``- HH:MM note:<kind> <ID> <text> · git=<stamp>`` (the `` · git=`` suffix is
+    optional).  Newest files are read first, at most
+    PLAN_NOTES_MAX_BYTES in total; each task keeps its latest PLAN_NOTES_PER_TASK."""
+    files = plan_log_files(plan_file, today)
+    budget = PLAN_NOTES_MAX_BYTES
+    truncated = False
+    mtime = 0
+    rows: list[tuple[str, str, int, str, str, str]] = []
+    for order, path in enumerate(reversed(files)):
+        try:
+            stat = path.stat()
+            mtime = max(mtime, stat.st_mtime_ns)
+            if budget <= 0:
+                truncated = True
+                continue
+            with path.open("rb") as handle:
+                if stat.st_size > budget:  # keep the newest part of an oversized log
+                    handle.seek(stat.st_size - budget)
+                    data = handle.read(budget).split(b"\n", 1)[-1]
+                    truncated = True
+                else:
+                    data = handle.read()
+            budget -= stat.st_size
+        except OSError as exc:
+            sys.stderr.write(f"cannot read plan log {path}: {exc!r}\n")
+            continue
+        day = path.name[:10]
+        for line_no, line in enumerate(data.decode("utf-8", errors="replace").splitlines()):
+            parts = line[2:].split(" ", 3) if line.startswith("- ") else []
+            if len(parts) == 4 and parts[1].startswith("note:") and TOP_TASK_ID_RE.fullmatch(parts[2]):
+                text = parts[3].rsplit(" · git=", 1)[0][:PLAN_NOTE_TEXT_LIMIT]
+                rows.append((day, parts[0], line_no, parts[1][5:], parts[2], text))
+    rows.sort(key=lambda row: (row[0], row[1], row[2]))
+    notes: dict[str, list[dict[str, str]]] = {}
+    for day, hhmm, _line_no, kind, task_id, text in rows:
+        notes.setdefault(task_id, []).append({"date": day, "time": hhmm, "kind": kind, "text": text})
+    return ({task_id: items[-PLAN_NOTES_PER_TASK:] for task_id, items in notes.items()}, truncated, str(mtime))
+
+
+def plan_payload_for_pane(pane_id: str, if_mtime: str = "", if_notes: str = "") -> dict[str, object]:
+    """GET /api/plan: plan show + plan list + raw text of the pane's project plan,
+    plus the per-task notes from the plan's daily logs."""
+    ctx = plan_context_for_pane(pane_id)
+    pane, project_dir, root = ctx["pane"], str(ctx["project_dir"]), ctx["root"]
+    base = {
+        "ok": True,
+        "pane": pane.pane_id,
+        "window_index": pane.window_index,
+        "project": os.path.basename(project_dir.rstrip(os.sep)) or project_dir,
+        "git": _plan_git_brief(str(root) if root else None),
+    }
+    known = _PLAN_FILE_FOR_PROJECT.get(project_dir)
+    if if_mtime and known:
+        try:
+            same_plan = str(os.stat(known).st_mtime_ns) == if_mtime
+        except OSError:
+            same_plan = False
+        # A progress note only appends to the log; the client passes the notes token too.
+        if same_plan and (not if_notes or plan_notes_token(known) == if_notes):
+            return {**base, "unchanged": True, "mtime_ns": if_mtime}
+    show = run_plan_cli(["plan", "show", project_dir])
+    if "error" in show:
+        raise PlanApiError(f"读取计划失败：{show['error']}", status=502)
+    listing = run_plan_cli(["plan", "list", project_dir])
+    if "error" in listing:
+        raise PlanApiError(f"读取任务列表失败：{listing['error']}", status=502)
+    # The CLI maps a task worktree to the main worktree's plan; show its file.
+    plan_file = str(ctx["plan"])
+    shown = Path(str(show.get("project") or "")) / str(show.get("task_plan") or "")
+    if show.get("project") and show.get("task_plan") and shown.is_file():
+        plan_file = str(shown)
+    _PLAN_FILE_FOR_PROJECT[project_dir] = plan_file
+    raw = Path(plan_file).read_bytes()
+    stat = os.stat(plan_file)
+    tasks = [item for item in listing.get("items") or [] if isinstance(item, dict)]
+    notes, notes_truncated, notes_mtime = plan_notes_by_task(plan_file)
+    return {
+        **base,
+        "notes_by_task": notes,
+        "notes_truncated": notes_truncated,
+        "notes_mtime_ns": notes_mtime,
+        "unchanged": False,
+        "plan_rel": str(show.get("task_plan") or os.path.relpath(plan_file, project_dir)),
+        "show": show,
+        "tasks": tasks,
+        "raw": raw[:PLAN_RAW_LIMIT].decode("utf-8", errors="replace"),
+        "raw_truncated": len(raw) > PLAN_RAW_LIMIT,
+        "mtime_ns": str(stat.st_mtime_ns),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "suggested_id": suggest_task_id([str(item.get("id") or "") for item in tasks], str(show.get("phase_id") or "")),
+    }
+
+
+def plan_track_for_pane(pane_id: str) -> dict[str, object]:
+    """GET /api/plan/track: ``<CARDS_TOP_CLI> track`` of the pane's repo, cached 60 s."""
+    ctx = plan_context_for_pane(pane_id)
+    if not ctx["root"]:
+        raise PlanApiError("这个项目还不是 Git 仓库，没有可分拣的改动", status=409)
+    root = str(ctx["root"])
+    now = time.monotonic()
+    with _GIT_LOCK:
+        hit = _PLAN_TRACK_CACHE.get(root)
+    if hit and now - hit[0] < PLAN_TRACK_TTL:
+        return {**hit[1], "cached": True, "age_s": round(now - hit[0], 1)}
+    data = run_plan_cli(["track", str(ctx["project_dir"])], timeout=PLAN_TRACK_TIMEOUT)
+    if "error" in data:
+        raise PlanApiError(f"分拣失败：{data['error']}", status=502)
+    result: dict[str, object] = {
+        "ok": True,
+        "repo": data.get("repo") or root,
+        "verdict": data.get("verdict"),
+        "counts": data.get("counts") or {},
+        "next_hint": data.get("next_hint") or "",
+        "note": data.get("note") or "",
+        "elapsed_s": data.get("elapsed_s"),
+    }
+    if isinstance(data.get("structure"), dict):
+        result["structure"] = data["structure"]
+    with _GIT_LOCK:
+        _PLAN_TRACK_CACHE[root] = (now, result)
+    return {**result, "cached": False, "age_s": 0.0}
+
+
+def _plan_field(payload: dict[str, object], key: str, *, required: bool = False, multiline: bool = False) -> str:
+    label = PLAN_FIELD_LABELS[key]
+    value = payload.get(key)
+    if value is None or value == "":
+        if required:
+            raise PlanApiError(f"{label}必填")
+        return ""
+    if not isinstance(value, str):
+        raise PlanApiError(f"{label}必须是文本")
+    value = value.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not value:
+        if required:
+            raise PlanApiError(f"{label}必填")
+        return ""
+    if len(value) > PLAN_FIELD_LIMITS[key]:
+        raise PlanApiError(f"{label}太长（最多 {PLAN_FIELD_LIMITS[key]} 字）")
+    for char in value:
+        code = ord(char)
+        if (code < 32 or code == 127) and not (multiline and char == "\n"):
+            if char == "\n":
+                raise PlanApiError(f"{label}只能写一行")
+            raise PlanApiError(f"{label}含有不允许的控制字符 U+{code:04X}")
+    # A plan task is one Markdown line whose metadata is split by " · ".
+    if not multiline and " · " in value:
+        raise PlanApiError(f"{label}不能包含分隔符「 · 」")
+    return value
+
+
+def _plan_task_id(payload: dict[str, object], *, required: bool = True) -> str:
+    value = payload.get("id")
+    if value in (None, "") and not required:
+        return ""
+    if not isinstance(value, str) or not TOP_TASK_ID_RE.fullmatch(value.strip()):
+        raise PlanApiError("任务 ID 格式不对（形如 P3.9.E1）")
+    return value.strip()
+
+
+def suggest_task_id_from_cli(project_dir: str) -> str:
+    """Next free task id from the CLI's own view of the plan (plan show + plan list)."""
+    show = run_plan_cli(["plan", "show", project_dir])
+    listing = run_plan_cli(["plan", "list", project_dir])
+    for data in (show, listing):
+        if "error" in data:
+            raise PlanApiError(f"读取计划失败：{data['error']}", status=502)
+    ids = [str(item.get("id") or "") for item in listing.get("items") or [] if isinstance(item, dict)]
+    return suggest_task_id(ids, str(show.get("phase_id") or ""))
+
+
+def plan_action_commands(project_dir: str, payload: dict[str, object], plan_file: str = "") -> list[list[str]]:
+    """Whitelisted action -> plan CLI argument lists (run in order).
+
+    Values go in ``--flag=value`` form (a title starting with "-" is not an
+    option) and positionals after ``--``; nothing is interpreted by a shell."""
+    action = payload.get("action")
+    if action not in PLAN_ACTIONS:
+        raise PlanApiError(f"不支持的操作：{str(action)[:40]}（只允许 {'/'.join(PLAN_ACTIONS)}）")
+    if action == "add":
+        title = _plan_field(payload, "title", required=True)
+        gate = _plan_field(payload, "gate")
+        deps = _plan_deps(payload)
+        task_id = _plan_task_id(payload, required=False)
+        if not task_id:
+            task_id = suggest_task_id_from_cli(project_dir)
+        cmd = ["plan", "add", f"--id={task_id}", f"--title={title}"]
+        if gate:
+            cmd.append(f"--gate={gate}")
+        if deps:
+            cmd.append(f"--depends-on={','.join(deps)}")
+        return [[*cmd, "--", project_dir]]
+    if action == "edit":
+        task_id = _plan_task_id(payload)
+        title = _plan_field(payload, "title")
+        gate = _plan_field(payload, "gate")
+        deps = _plan_deps(payload)
+        if not (title or gate or deps):
+            raise PlanApiError("改任务至少要填标题、验收或前置任务之一")
+        cmd = ["plan", "edit"]
+        if title:
+            cmd.append(f"--title={title}")
+        if gate:
+            cmd.append(f"--add-gate={gate}")
+        cmd.extend(f"--add-dep={dep}" for dep in deps)
+        return [[*cmd, "--", project_dir, task_id]]
+    if action == "note":
+        text = _plan_field(payload, "text", required=True, multiline=True)
+        cmd = ["plan", "note"]
+        if payload.get("id"):
+            cmd.append(f"--id={_plan_task_id(payload)}")
+        kind = payload.get("kind") or "progress"
+        if kind not in PLAN_NOTE_KINDS:
+            raise PlanApiError("笔记类型只能是 progress/fail/learn")
+        cmd.append(f"--kind={kind}")
+        return [[*cmd, "--", project_dir, text]]
+    task_id = _plan_task_id(payload)
+    if action == "start":
+        return [["plan", "start", "--", project_dir, task_id]]
+    reason = _plan_field(payload, "reason", required=True)
+    if action in {"block", "cancel"}:
+        return [["plan", action, f"--reason={reason}", "--", project_dir, task_id]]
+    # reopen: the CLI takes no reason, so the reason is kept as a task note.
+    return [
+        ["plan", "reopen", "--", project_dir, task_id],
+        ["plan", "note", f"--id={task_id}", "--kind=progress", "--", project_dir, f"重开：{reason}"],
+    ]
+
+
+def _plan_deps(payload: dict[str, object]) -> list[str]:
+    raw = _plan_field(payload, "depends_on")
+    deps = [dep.strip() for dep in re.split(r"[,，\s]+", raw) if dep.strip()]
+    for dep in deps:
+        if not TOP_TASK_ID_RE.fullmatch(dep):
+            raise PlanApiError(f"前置任务 ID 格式不对：{dep[:40]}")
+    return deps
+
+
+def plan_action_for_pane(payload: object) -> dict[str, object]:
+    """POST /api/plan/action: run one whitelisted plan command for the pane's project."""
+    if not isinstance(payload, dict):
+        raise PlanApiError("请求必须是 JSON 对象")
+    action = str(payload.get("action") or "")[:20]
+    project = "?"
+    outcome = "error"
+    try:
+        ctx = plan_context_for_pane(str(payload.get("pane") or ""))
+        project = os.path.basename(str(ctx["project_dir"]))
+        commands = plan_action_commands(str(ctx["project_dir"]), payload, str(ctx["plan"]))
+        results = []
+        for index, args in enumerate(commands):
+            data = run_plan_cli(args)
+            failure = plan_cli_failure(data)
+            if failure is not None:
+                if index:  # reopen went through; only its reason note failed
+                    failure = PlanApiError(f"任务已重开，但原因没记上：{failure}", status=failure.status)
+                outcome = "conflict" if failure.status == 409 else "rejected"
+                raise failure
+            results.append(data)
+        outcome = "ok"
+        return {
+            "ok": True,
+            "action": action,
+            "item_id": results[0].get("item_id") or payload.get("id") or "",
+            "next_hint": results[0].get("next_hint") or "",
+        }
+    except PlanApiError as exc:
+        if outcome == "error":
+            outcome = f"error:{exc.status}"
+        raise
+    finally:
+        print(
+            f"plan action pane={str(payload.get('pane') or '')[:16]} action={action} project={project} result={outcome}",
+            file=sys.stderr, flush=True,
+        )
+
+
+def request_archive(pane_id: str, expected_pid: str = "", expected_start_time: str = "") -> dict[str, object]:
+    """POST /api/archive-request: send the CARDS_ARCHIVE_PROMPT text to an idle AI pane."""
+    pane_id = str(pane_id or "").strip()
+    outcome = "error"
+    try:
+        if ARCHIVE_PROMPT is None:
+            outcome = "not-configured"
+            raise PlanApiError(ARCHIVE_NOT_CONFIGURED, status=501)
+        if not PANE_ID_RE.fullmatch(pane_id):
+            raise PlanApiError("pane 参数无效")
+        pane = pane_by_id(pane_id)
+        if pane is None:
+            raise PlanApiError("窗口不存在或已关闭", status=404)
+        validate_pane_instance(pane, expected_pid, expected_start_time)
+        if pane.kind not in {"Claude", "Codex"} or not pane.ai_alive:
+            outcome = "no-ai"
+            raise PlanApiError("这个窗口里没有运行中的 AI，不能归档", status=409)
+        status = infer_pane_status(
+            pane.pane_id, capture(pane.pane_id, history=30), pane.command, pane.kind,
+            pane.ai_alive, pane.ai_transcript, pane.pane_pid, pane.ai_session_id,
+        )
+        if status != "idle":
+            outcome = f"busy:{status}"
+            raise PlanApiError("窗口正在工作，等它空闲再归档", status=409)
+        try:
+            text = ARCHIVE_PROMPT.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise PlanApiError(f"读不了 CARDS_ARCHIVE_PROMPT 指向的文件：{exc}", status=500) from exc
+        if not text:
+            raise PlanApiError("CARDS_ARCHIVE_PROMPT 指向的文件是空的", status=500)
+        run = archive_baseline(pane)  # before sending: the AI's commits must land after it
+        receipt = send_message_with_receipt(
+            pane.pane_id, text, True, expected_pid=expected_pid, expected_start_time=expected_start_time,
+        )
+        outcome = "sent"
+        save_archive_run(pane.pane_id, run)
+        return {**receipt, "archive": True, "archive_run": archive_run_view(run, time.time())}
+    finally:
+        print(f"archive request pane={pane_id[:16]} result={outcome}", file=sys.stderr, flush=True)
+
+
+# ---------------------------------------------------------------------------
+# 归档结果回路
+#
+# 点"归档"时记下基线 (发送时间、HEAD、待归档数、未推送数、计划文件指纹), 存进
+# prefs.json 的 archiveRuns (服务端独占的键, merge_prefs 不接受客户端覆盖),
+# 保留 24 小时。pane 回到 idle 且距发送超过 30 秒后, 在 git 线程池里算一次结果:
+# 基线 HEAD 之后的新提交数、现在的待归档数、计划文件有没有变。/api/panes 的每个
+# pane 带 ``archive`` 字段给前端显示"归档中… / 归档完成：…"。
+# ---------------------------------------------------------------------------
+ARCHIVE_RUN_TTL = 24 * 3600.0
+ARCHIVE_SETTLE_SECONDS = 30.0
+_ARCHIVE_EVAL_PENDING: set[str] = set()
+
+
+def _plan_fingerprint(plan: str) -> dict[str, object] | None:
+    try:
+        raw = Path(plan).read_bytes()
+        return {"mtime_ns": str(os.stat(plan).st_mtime_ns), "sha256": hashlib.sha256(raw).hexdigest()}
+    except OSError:
+        return None
+
+
+def _archive_git_snapshot(root: str) -> tuple[dict[str, object], dict[str, object]]:
+    """``({"head", "pending", "ahead"}, full git status)``; raises when git fails."""
+    status = compute_git_status(root)
+    if status.get("state") != "ok":
+        raise RuntimeError(str(status.get("error") or "git status unknown"))
+    try:
+        head = _run_git(root, "rev-parse", "--verify", "-q", "HEAD").strip()
+    except RuntimeError:
+        head = ""  # status just worked, so a failing rev-parse means an unborn branch (no commit yet)
+    pending = int(status.get("modified") or 0) + int(status.get("untracked") or 0)
+    return {"head": head, "pending": pending, "ahead": status.get("ahead")}, status
+
+
+def archive_baseline(pane: Pane) -> dict[str, object]:
+    """Baseline of one archive request, taken just before the prompt is sent."""
+    run: dict[str, object] = {
+        "pane_pid": pane.pane_pid,
+        "pane_start_time": pane.pane_start_time,
+        "sent_at": time.time(),
+        "state": "running",
+        "root": None,
+        "base": None,
+        "plan_path": None,
+        "plan": None,
+    }
+    run["cwd"] = pane.cwd
+    root = git_root_for_cwd(pane.cwd)
+    found = find_top_plan(pane.cwd, plan_search_root(pane.cwd, root) or "")
+    if found:
+        run["plan_path"] = found[1]
+        run["plan"] = _plan_fingerprint(found[1])
+    if not root:
+        # No repository yet: the archive run may create one.  The
+        # baseline is "nothing committed"; the result counts whatever lands.
+        run["base"] = {"head": "", "pending": None, "ahead": None, "no_git": True}
+        return run
+    run["root"] = root
+    try:
+        run["base"], _status = _archive_git_snapshot(root)
+    except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
+        run["base_error"] = f"读取 Git 基线失败：{exc}"[:200]
+    return run
+
+
+def _live_archive_runs(raw: object, now: float) -> dict[str, dict[str, object]]:
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(pane_id): run for pane_id, run in raw.items()
+        if isinstance(run, dict) and isinstance(run.get("sent_at"), (int, float))
+        and now - float(run["sent_at"]) < ARCHIVE_RUN_TTL
+    }
+
+
+def archive_runs_snapshot(now: float | None = None) -> dict[str, dict[str, object]]:
+    """Archive runs younger than 24 h, keyed by pane id."""
+    with PREFS_LOCK:
+        return _live_archive_runs(_read_prefs_unlocked().get(ARCHIVE_RUNS_KEY), time.time() if now is None else now)
+
+
+def save_archive_run(pane_id: str, run: dict[str, object], *, only_if_sent_at: float | None = None) -> bool:
+    """Store one run (dropping expired ones).  ``only_if_sent_at`` makes a
+    result write a no-op when a newer archive request replaced the run."""
+    with PREFS_LOCK:
+        prefs = _read_prefs_unlocked()
+        runs = _live_archive_runs(prefs.get(ARCHIVE_RUNS_KEY), time.time())
+        if only_if_sent_at is not None and (runs.get(pane_id) or {}).get("sent_at") != only_if_sent_at:
+            return False
+        runs[pane_id] = run
+        prefs[ARCHIVE_RUNS_KEY] = runs
+        _write_prefs_unlocked(prefs)
+        return True
+
+
+def evaluate_archive_run(pane_id: str, run: dict[str, object]) -> dict[str, object]:
+    """Compute and store the result of a finished archive run; returns the stored run."""
+    done: dict[str, object] = {**run, "state": "done", "finished_at": time.time()}
+    try:
+        if run.get("base_error") or not isinstance(run.get("base"), dict):
+            raise RuntimeError(str(run.get("base_error") or "没有归档基线"))
+        root = str(run.get("root") or "")
+        if not root and run["base"].get("no_git"):
+            cwd = str(run.get("cwd") or "")
+            with _GIT_LOCK:
+                _GIT_ROOT_CACHE.pop(cwd, None)  # the archive may just have created the repository
+            root = git_root_for_cwd(cwd) or ""
+            if not root:
+                plan_now = _plan_fingerprint(str(run["plan_path"])) if run.get("plan_path") else None
+                before = run.get("plan") if isinstance(run.get("plan"), dict) else None
+                done["result"] = {
+                    "new_commits": 0, "pending": None, "ahead": None, "head": "", "no_git": True,
+                    "plan_changed": bool(plan_now and (not before or plan_now.get("sha256") != before.get("sha256"))),
+                }
+                save_archive_run(pane_id, done, only_if_sent_at=run.get("sent_at"))  # type: ignore[arg-type]
+                print(f"archive result pane={pane_id[:16]} result=no-git", file=sys.stderr, flush=True)
+                return done
+            done["root"] = root
+        if not root:
+            raise RuntimeError("没有归档基线")
+        now_snap, status = _archive_git_snapshot(root)
+        base_head = str(run["base"].get("head") or "")
+        if not now_snap["head"]:
+            new_commits = 0
+        else:
+            spec = f"{base_head}..HEAD" if base_head else "HEAD"
+            new_commits = int(_run_git(root, "rev-list", "--count", spec).strip() or 0)
+        plan_now = _plan_fingerprint(str(run["plan_path"])) if run.get("plan_path") else None
+        before = run.get("plan") if isinstance(run.get("plan"), dict) else None
+        done["result"] = {
+            "new_commits": new_commits,
+            "pending": now_snap["pending"],
+            "ahead": now_snap["ahead"],
+            "head": now_snap["head"],
+            "plan_changed": bool(plan_now and (not before or plan_now.get("sha256") != before.get("sha256"))),
+        }
+        if run["base"].get("no_git"):
+            done["result"]["git_created"] = True
+        with _GIT_LOCK:  # the cards should show the numbers the result line quotes
+            _GIT_STATUS_CACHE[root] = (time.monotonic(), status)
+    except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
+        done["result"] = {"error": str(exc)[:200]}
+    save_archive_run(pane_id, done, only_if_sent_at=run.get("sent_at"))  # type: ignore[arg-type]
+    print(f"archive result pane={pane_id[:16]} result={'error' if 'error' in done['result'] else 'ok'}",
+          file=sys.stderr, flush=True)
+    return done
+
+
+def _evaluate_archive_run_job(pane_id: str, run: dict[str, object]) -> None:
+    try:
+        evaluate_archive_run(pane_id, run)
+    except Exception as exc:  # noqa: BLE001 - executor thread: log loudly, retry on the next poll
+        sys.stderr.write(f"archive result crashed for {pane_id!r}: {exc!r}\n")
+    finally:
+        with _GIT_LOCK:
+            _ARCHIVE_EVAL_PENDING.discard(pane_id)
+
+
+def archive_run_view(run: dict[str, object], now: float) -> dict[str, object]:
+    """The ``archive`` field of one /api/panes item (no paths)."""
+    base = run.get("base") if isinstance(run.get("base"), dict) else {}
+    view: dict[str, object] = {
+        "state": run.get("state"),
+        "sent_at": run.get("sent_at"),
+        "finished_at": run.get("finished_at"),
+        "age_s": round(now - float(run.get("finished_at") or run.get("sent_at") or now), 1),
+        "base_pending": base.get("pending"),
+        "base_ahead": base.get("ahead"),
+    }
+    if isinstance(run.get("result"), dict):
+        view["result"] = {k: v for k, v in run["result"].items() if k != "head"}
+    return view
+
+
+def archive_run_tick(pane: Pane, status: str, runs: dict[str, dict[str, object]], now: float) -> dict[str, object] | None:
+    """Archive view for a pane; schedules the result once the pane is idle again
+    30 s after sending.  Runs of an earlier pane instance with the same id are ignored."""
+    run = runs.get(pane.pane_id)
+    if not run or run.get("pane_pid") != pane.pane_pid or run.get("pane_start_time") != pane.pane_start_time:
+        return None
+    if run.get("state") == "running" and status == "idle" and now - float(run["sent_at"]) >= ARCHIVE_SETTLE_SECONDS:
+        with _GIT_LOCK:
+            submit = pane.pane_id not in _ARCHIVE_EVAL_PENDING
+            _ARCHIVE_EVAL_PENDING.add(pane.pane_id)
+        if submit:
+            try:
+                _GIT_EXECUTOR.submit(_evaluate_archive_run_job, pane.pane_id, dict(run))
+            except RuntimeError as exc:  # interpreter shutting down
+                with _GIT_LOCK:
+                    _ARCHIVE_EVAL_PENDING.discard(pane.pane_id)
+                sys.stderr.write(f"could not schedule archive result for {pane.pane_id!r}: {exc}\n")
+    return archive_run_view(run, now)
+
+
+def archive_blocker_for(pane: Pane, archive: Mapping[str, object] | None = None) -> str:
+    """Why the 归档 button is greyed out ('' = it can be pressed).  A missing Git
+    repository is not a blocker: the archive run may create one."""
+    if ARCHIVE_PROMPT is None:
+        return ARCHIVE_NOT_CONFIGURED
+    if archive and archive.get("state") == "running":
+        return "归档进行中，等结果出来再发"
+    if pane.kind not in {"Claude", "Codex"}:
+        return "窗口里没有 AI 进程（Claude/Codex），不能归档"
+    if not pane.ai_alive:
+        return "窗口里的 AI 进程已退出，不能归档"
+    return ""
+
+
+def pane_panel_fields(
+    pane: Pane, git_summary: Mapping[str, object] | None, archive: Mapping[str, object] | None,
+) -> dict[str, object]:
+    """Fields the detail header needs to always show 计划 / 归档 / 终端 and say why
+    a button is greyed out, for panes with and without a Git repository."""
+    if git_summary is not None:
+        has_plan = bool(git_summary.get("has_plan"))
+    else:
+        has_plan = find_top_plan(pane.cwd, plan_search_root(pane.cwd) or "") is not None
+    return {
+        "has_git": git_summary is not None,
+        "plan_available": has_plan,
+        "plan_reason": "" if has_plan else (PLAN_NOT_CONFIGURED if PLAN_CLI is None else PLAN_MISSING_REASON),
+        "archive_blocker": archive_blocker_for(pane, archive),
+    }
+
+
 def build_panes_response(session: str, *, preview_history: int = 30, include_preview: bool = True) -> list[dict[str, object]]:
     """Build the /api/panes payload, keeping each pane's job pill in sync with
     its live status.
@@ -4132,6 +5649,8 @@ def build_panes_response(session: str, *, preview_history: int = 30, include_pre
     pane_items = list_panes(session, preview_history=preview_history, include_preview=include_preview)
     panes: list[dict[str, object]] = []
     job_cache_dirty = False
+    now = time.time()
+    archive_runs = archive_runs_snapshot(now)
     for item in pane_items:
         pane_dict = asdict(item)
         subagents = pane_running_subagents(item.kind, item.ai_alive, item.ai_transcript, item.pane_pid)
@@ -4157,6 +5676,13 @@ def build_panes_response(session: str, *, preview_history: int = 30, include_pre
             pane_dict["runtime_status"] = runtime_observation.get("status", "")
             pane_dict["runtime_status_source"] = runtime_observation.get("source", "")
             pane_dict["runtime_status_confidence"] = runtime_observation.get("confidence", "")
+        git_summary = pane_git_summary(item.cwd)
+        if git_summary is not None:
+            pane_dict["git"] = git_summary
+        archive = archive_run_tick(item, item.status, archive_runs, now)
+        if archive is not None:
+            pane_dict["archive"] = archive
+        pane_dict.update(pane_panel_fields(item, git_summary, archive))
         panes.append(pane_dict)
     if job_cache_dirty:
         invalidate_job_cache()
@@ -6340,10 +7866,15 @@ def blocks_for_pane_with_meta(pane: Pane | None, capture_text: str) -> tuple[lis
                 # behind a picker, and cutting at what it shows hid the newest turns.
                 if not stamped:
                     blocks = trim_transcript_blocks_to_screen(blocks, capture_text)
-                blocks = merge_live_screen_tail(
-                    blocks, capture_text, pane_kind=pane.kind,
-                    pane_identity=_pane_agent_process_identity(pane),
-                )
+                # Output that has not reached the transcript only exists while a turn
+                # runs: an idle or waiting Claude has written everything it said.  The
+                # screen of an idle pane may still hold another program's old output
+                # (the Codex session this window ran before), which is not new.
+                if not stamped or str((official_claude_record(pane) or {}).get("status") or "") not in {"idle", "waiting"}:
+                    blocks = merge_live_screen_tail(
+                        blocks, capture_text, pane_kind=pane.kind,
+                        pane_identity=_pane_agent_process_identity(pane),
+                    )
                 blocks = attach_subagent_status(blocks, path)
                 # The live on-screen picker is not in the transcript until it is
                 # answered, so append it from the current capture.
@@ -6464,6 +7995,7 @@ def frontend_config() -> dict[str, object]:
         "publicShareHost": PUBLIC_SHARE_HOST,
         "publicShareDir": PUBLIC_SHARE_DIR,
         "summaryHeadings": SUMMARY_HEADINGS,
+        "terminalUrl": TERMINAL_URL,
     }
 
 
@@ -6977,6 +8509,35 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 json_response(self, {"active_pane": pane, "captured_at": now_iso()})
                 return
+            if path in {"/api/terminal/status", "/api/terminal/capture"}:
+                site = str(self.headers.get("Sec-Fetch-Site") or "").strip().lower()
+                if site and site not in {"same-origin", "none"}:
+                    # Read-only, but it reads process/tmux state: another page must not probe it.
+                    json_response(self, {"error": "cross-site request refused"}, status=403)
+                    return
+                try:
+                    if path == "/api/terminal/capture":
+                        lines_arg = query.get("lines", [""])[0]
+                        before_arg = query.get("before", [""])[0]
+                        if (lines_arg and not lines_arg.isdigit()) or (before_arg and not before_arg.isdigit()):
+                            raise ValueError("lines and before must be non-negative integers")
+                        payload = terminal_capture(
+                            query.get("pane", [""])[0],
+                            int(lines_arg) if lines_arg else None,
+                            int(before_arg) if before_arg else None,
+                            query.get("if_hash", [""])[0],
+                            join=query.get("join", ["0"])[0] in {"1", "true", "yes"},
+                        )
+                    else:
+                        payload = terminal_status(query.get("pane", [""])[0])
+                except ValueError as exc:
+                    json_response(self, {"error": str(exc)}, status=400)
+                    return
+                except FileNotFoundError as exc:
+                    json_response(self, {"error": str(exc)}, status=404)
+                    return
+                json_response(self, payload)
+                return
             if path == "/api/panes":
                 session = query.get("session", [DEFAULT_SESSION])[0]
                 if session != DEFAULT_SESSION:
@@ -7048,6 +8609,24 @@ class Handler(BaseHTTPRequestHandler):
                         "captured_at": now_iso(),
                     },
                 )
+                return
+            if path in {"/api/plan", "/api/plan/track"}:
+                pane = query.get("pane", [""])[0]
+                site = str(self.headers.get("Sec-Fetch-Site") or "").strip().lower()
+                if path == "/api/plan/track" and site and site not in {"same-origin", "none"}:
+                    # Read-only, but it runs a subprocess: another page must not be able to trigger it.
+                    json_response(self, {"error": "cross-site request refused"}, status=403)
+                    return
+                try:
+                    if path == "/api/plan":
+                        payload = plan_payload_for_pane(
+                            pane, query.get("if_mtime", [""])[0], query.get("if_notes", [""])[0])
+                    else:
+                        payload = plan_track_for_pane(pane)
+                except PlanApiError as exc:
+                    json_response(self, {"error": str(exc)}, status=exc.status)
+                    return
+                json_response(self, payload)
                 return
             if path == "/api/capture":
                 pane = query.get("pane", [""])[0]
@@ -7232,6 +8811,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/send", "/api/upload", "/api/key", "/api/choose", "/api/prefs", "/api/prefs/favorite",
                 "/api/prefs/category", "/api/prefs/category/delete", "/api/prefs/pane", "/api/prefs/group",
                 "/api/pane/close", "/api/files/upload", "/api/files/upload-chunk", "/api/files/delete",
+                "/api/plan/action", "/api/archive-request", "/api/terminal/focus", "/api/terminal/resize",
             }:
                 json_response(self, {"error": "not found"}, status=404)
                 return
@@ -7255,6 +8835,7 @@ class Handler(BaseHTTPRequestHandler):
             elif path in {
                 "/api/send", "/api/key", "/api/choose", "/api/prefs/favorite", "/api/prefs/category",
                 "/api/prefs/category/delete", "/api/prefs/pane", "/api/prefs/group", "/api/pane/close",
+                "/api/plan/action", "/api/archive-request", "/api/terminal/focus", "/api/terminal/resize",
             }:
                 max_length = 20_000
             elif path == "/api/files/delete":
@@ -7448,6 +9029,64 @@ class Handler(BaseHTTPRequestHandler):
                     ],
                     "prefs": prefs,
                 })
+                return
+            if path in {"/api/plan/action", "/api/archive-request"}:
+                try:
+                    if path == "/api/plan/action":
+                        result = plan_action_for_pane(payload)
+                    else:
+                        if not isinstance(payload, dict):
+                            raise PlanApiError("请求必须是 JSON 对象")
+                        result = request_archive(
+                            str(payload.get("pane") or ""),
+                            str(payload.get("pane_pid") or ""),
+                            str(payload.get("pane_start_time") or ""),
+                        )
+                except PlanApiError as exc:
+                    json_response(self, {"error": str(exc)}, status=exc.status)
+                    return
+                except ValueError as exc:
+                    json_response(self, {"error": str(exc)}, status=400)
+                    return
+                except (PaneIdentityConflict, SendRequestConflict) as exc:
+                    json_response(self, {"error": str(exc)}, status=409)
+                    return
+                json_response(self, result)
+                return
+            if path == "/api/terminal/resize":
+                if not isinstance(payload, dict):
+                    json_response(self, {"error": "resize request must be an object"}, status=400)
+                    return
+                try:
+                    result = terminal_resize(str(payload.get("pane") or ""), payload.get("cols"), payload.get("rows"))
+                except ValueError as exc:
+                    json_response(self, {"error": str(exc)}, status=400)
+                    return
+                except FileNotFoundError as exc:
+                    json_response(self, {"error": str(exc)}, status=404)
+                    return
+                json_response(self, result)
+                return
+            if path == "/api/terminal/focus":
+                if not isinstance(payload, dict):
+                    json_response(self, {"error": "focus request must be an object"}, status=400)
+                    return
+                try:
+                    result = terminal_focus(
+                        str(payload.get("pane") or ""),
+                        str(payload.get("pane_pid") or ""),
+                        str(payload.get("pane_start_time") or ""),
+                    )
+                except ValueError as exc:
+                    json_response(self, {"error": str(exc)}, status=400)
+                    return
+                except FileNotFoundError as exc:
+                    json_response(self, {"error": str(exc)}, status=404)
+                    return
+                except PaneIdentityConflict as exc:
+                    json_response(self, {"error": str(exc)}, status=409)
+                    return
+                json_response(self, result)
                 return
             if path == "/api/pane/close":
                 if not isinstance(payload, dict):

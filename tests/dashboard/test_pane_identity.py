@@ -78,6 +78,24 @@ class IdentityTest(unittest.TestCase):
         self.assertEqual(meta["quality"], "full")
         self.assertIn("final answer written", blocks[-1]["text"])
 
+    def test_idle_session_gets_no_live_tail_from_an_earlier_program(self) -> None:
+        # 改前: 窗口先跑过 Codex、再换成 Claude；Claude 空闲时，屏幕里残留的 Codex 输出被当成
+        # "还没落盘的新内容"追加在卡片末尾。
+        path = self.transcript("live", [user("please take over"), assistant("taken over, summary written")])
+        pane = claude_pane(ai_session_id="live", ai_transcript=path)
+        screen = "\n".join([
+            "› earlier message typed into the previous program",
+            "• an answer printed by the previous program before the switch",
+            "─" * 60, "❯ please take over", "● taken over, summary written",
+            "─" * 60, "❯ ", "─" * 60, "  ⏵⏵ bypass permissions on",
+        ])
+        with mock.patch.object(server, "pane_is_alt_screen", return_value=True), \
+             mock.patch.object(server, "official_claude_record", return_value={"sessionId": "live", "status": "idle"}), \
+             mock.patch.object(server, "_shared_live_transcript_panes", return_value=[]):
+            blocks, _meta = server.blocks_for_pane_with_meta(pane, screen)
+        self.assertFalse(any(block.get("pending") for block in blocks))
+        self.assertIn("summary written", blocks[-1]["text"])
+
     def test_scrolled_back_screen_adds_no_live_tail(self) -> None:
         recorded = [
             {"role": "user", "label": "User prompt", "text": "first question about the sample task"},

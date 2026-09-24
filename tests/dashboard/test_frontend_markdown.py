@@ -136,5 +136,59 @@ if (!output.includes('class="terminal-flow"') || (output.match(/terminal-flow-st
         self.assertIn('if (axis === "x" && hostHasRoomFor(scrollHost, dx)) {', html)
 
 
+class NestedListTest(unittest.TestCase):
+    def render(self, markdown: str) -> str:
+        html = _index_html()
+        start = html.index("    function renderMarkdown(text)")
+        end = html.index("\n    }\n", start) + len("\n    }\n")
+        script = f"""
+const renderInlineMarkdown = (text) => String(text);
+const escapeHtml = (text) => String(text);
+const renderMarkdownCopyBox = (tag, inner) => `<${{tag}}>${{inner}}</${{tag}}>`;
+const renderDenseInlineListIfAny = () => "";
+const parseMarkdownTable = () => null;
+const parseBoxBanner = () => null, parseBoxDrawingTable = () => null, collectDenseNameRun = () => null, renderDenseNameList = () => "";
+{html[start:end]}
+process.stdout.write(renderMarkdown({markdown!r}));
+"""
+        result = subprocess.run(["node", "-e", script], check=False, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        return result.stdout
+
+    def test_ordered_list_indented_under_a_bullet_stays_nested(self) -> None:
+        # an indented 1..3 under a bullet used to escape to the top level
+        # and turn the following bullets into sub-items of "3."
+        html = self.render("- 全局技能：流程——\n  1. 读规则；\n  2. 看现状；\n  3. 汇报。\n- 项目规则文件：固定位置\n- 第一次归档：一次问完")
+        self.assertEqual(html, "<ul><li>全局技能：流程——<ol><li>读规则；</li><li>看现状；</li><li>汇报。</li></ol></li>"
+                               "<li>项目规则文件：固定位置</li><li>第一次归档：一次问完</li></ul>")
+
+    def test_deeper_nesting_and_continuations(self) -> None:
+        html = self.render("1. 第一步\n   - 细节 a\n     - 更细\n   - 细节 b\n     续一行\n2. 第二步")
+        self.assertEqual(html, "<ol><li>第一步<ul><li>细节 a<ul><li>更细</li></ul></li><li>细节 b<p>续一行</p></li></ul></li>"
+                               "<li>第二步</li></ol>")
+
+    def test_flush_left_bullets_after_a_numbered_item_are_still_its_subitems(self) -> None:
+        html = self.render("1. 做 A\n- 子项一\n- 子项二\n2. 做 B")
+        self.assertEqual(html, "<ol><li>做 A<ul><li>子项一</li><li>子项二</li></ul></li><li>做 B</li></ol>")
+
+    def test_plain_lists_are_unchanged(self) -> None:
+        self.assertEqual(self.render("- a\n- b"), "<ul><li>a</li><li>b</li></ul>")
+        self.assertEqual(self.render("1. a\n2. b\n\n正文"), "<ol><li>a</li><li>b</li></ol><p>正文</p>")
+        self.assertEqual(self.render("- a\n1. b"), "<ul><li>a</li></ul><ol><li>b</li></ol>")
+
+
+class MarkdownStyleTest(unittest.TestCase):
+    def test_inline_code_and_tables_in_the_dark_theme(self) -> None:
+        html = _index_html()
+        code = html[html.index("    .markdown code {\n      border: 1px solid rgba(248, 248, 242, .14);"):]
+        code = code[:code.index("}")]
+        self.assertIn("box-decoration-break: clone;", code)  # a wrapped pill keeps its border on every line
+        self.assertNotIn("solid #dfe4d8", html)               # no light-theme borders left in the dark theme
+        cell = html[html.index("    .markdown th code,\n    .markdown td code {"):]
+        cell = cell[:cell.index("}")]
+        for rule in ("white-space: normal;", "word-break: normal;", "overflow-wrap: break-word;"):
+            self.assertIn(rule, cell)
+
+
 if __name__ == "__main__":
     unittest.main()

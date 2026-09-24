@@ -804,6 +804,727 @@
       opacity: .64;
     }
 
+    /* 卡片 Git 状态行: 小字、单行, 分支名过长时优先截断分支名 */
+    .card-git {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.25;
+      white-space: nowrap;
+    }
+    .card-git > span {
+      flex: 0 0 auto;
+    }
+    .card-git .cg-branch {
+      flex: 0 1 auto;
+      min-width: 2.5em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-git .cg-warn {
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .card-git .cg-alert {
+      color: var(--red);
+      font-weight: 600;
+    }
+    /* 未跟踪很多多半是生成物/未提交记录: 只给弱提示色, 不与改动的红色警示抢眼 */
+    .card-git .cg-untracked-many {
+      color: var(--gold);
+      opacity: .8;
+    }
+    .card-git .cg-task {
+      flex: 0 1 auto;
+      min-width: 3em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--blue);
+    }
+    .card-git.is-muted {
+      opacity: .64;
+    }
+    /* 待归档 = 未跟踪(未忽略)新文件 + 已追踪文件未提交改动; 颜色按数量与上次归档时间 */
+    .card-git .cg-amber {
+      color: var(--amber, #ffb86c);
+      font-weight: 600;
+    }
+    .card-git .cg-split {
+      margin-left: 4px;
+      font-weight: 400;
+      opacity: .68;
+    }
+    @media (max-width: 760px) {
+      .card-git .cg-split {
+        display: none;
+      }
+    }
+
+    /* 卡片"计划"面板: 桌面右侧抽屉, 手机全屏。默认标签页就是计划文件本身 */
+    .plan-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 119;
+      background: rgba(0, 0, 0, .38);
+    }
+    .plan-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 120;
+      display: flex;
+      flex-direction: column;
+      width: min(760px, 94vw);
+      border-left: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .plan-backdrop[hidden],
+    .plan-panel[hidden],
+    .plan-form[hidden] {
+      display: none;
+    }
+    .plan-head {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 10px 12px 6px;
+    }
+    .plan-head-main {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .plan-title {
+      overflow: hidden;
+      font-size: 15px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .plan-sub {
+      color: var(--muted);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+    .plan-head-actions {
+      display: flex;
+      flex: none;
+      gap: 4px;
+    }
+    .plan-panel button {
+      height: 28px;
+      padding: 0 8px;
+      font-size: 12px;
+    }
+    .plan-tabs {
+      display: flex;
+      gap: 2px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .plan-panel .plan-tabs button {
+      height: 30px;
+      padding: 0 12px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+    }
+    .plan-panel .plan-tabs button[aria-selected="true"] {
+      border-bottom-color: var(--blue);
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .plan-body {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 0 12px 16px;
+      overscroll-behavior: contain;
+    }
+    .plan-body > :first-child:not(.plan-summary) {
+      margin-top: 10px;
+    }
+    .plan-section {
+      margin-bottom: 12px;
+    }
+    .plan-section h4 {
+      margin: 0 0 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .plan-muted,
+    .plan-task-id {
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .plan-list {
+      margin: 0;
+      padding-left: 16px;
+    }
+    .plan-list li {
+      margin: 1px 0;
+      overflow-wrap: anywhere;
+    }
+    .plan-warn {
+      color: var(--amber, #ffb86c);
+    }
+    /* 顶部固定摘要条: 进度 / 当前 / 下一步 / 阻塞 */
+    .plan-summary {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: grid;
+      gap: 3px;
+      margin: 0 -12px 10px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .plan-progress {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .plan-progress-bar {
+      flex: 1 1 auto;
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(127, 127, 127, .22);
+    }
+    .plan-progress-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--green);
+    }
+    .plan-progress-text {
+      flex: none;
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-summary-line {
+      display: flex;
+      gap: 6px;
+      min-width: 0;
+      align-items: baseline;
+    }
+    .plan-summary-label {
+      flex: none;
+      width: 3.4em;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .plan-summary-value {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .plan-summary-value.is-current {
+      color: var(--green);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .plan-summary-line.is-blocker .plan-summary-value {
+      color: var(--red);
+      white-space: normal;
+    }
+    .plan-summary-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-top: 3px;
+    }
+    .plan-summary-actions label {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    /* 计划正文 */
+    .plan-doc-title {
+      margin: 0;
+      font-size: 17px;
+    }
+    .plan-stamp {
+      margin: 2px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .plan-done-criteria {
+      margin: 0 0 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--green);
+      border-left-width: 4px;
+      border-radius: 6px;
+      background: rgba(80, 250, 123, .07);
+      overflow-wrap: anywhere;
+    }
+    .plan-done-criteria b {
+      display: block;
+      color: var(--green);
+      font-size: 11px;
+    }
+    .plan-doc-section {
+      margin: 0 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+    }
+    .plan-doc-section > summary {
+      padding: 6px 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .plan-doc-section > .plan-section-body {
+      padding: 0 10px 8px;
+    }
+    .plan-panel .markdown.plan-md {
+      padding: 0;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .plan-panel .markdown.plan-md table {
+      width: max-content;
+      min-width: 100%;
+      max-width: none;
+      font-size: 12px;
+    }
+    .plan-panel .markdown.plan-md td,
+    .plan-panel .markdown.plan-md th {
+      max-width: 28em;
+      padding: 4px 6px;
+    }
+    .plan-coord {
+      display: grid;
+      gap: 6px;
+    }
+    .plan-kv {
+      display: grid;
+      grid-template-columns: 5.2em minmax(0, 1fr);
+      gap: 8px;
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--bg);
+    }
+    .plan-k {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .plan-v {
+      overflow-wrap: anywhere;
+    }
+    /* Active Work 勾选清单树 */
+    .plan-tree,
+    .plan-children {
+      display: grid;
+      gap: 1px;
+    }
+    .plan-children {
+      margin-left: 8px;
+      padding-left: 8px;
+      border-left: 1px solid var(--line);
+    }
+    .plan-row {
+      display: grid;
+      grid-template-columns: 1.1em auto 1.4em minmax(0, 1fr);
+      gap: 4px;
+      align-items: start;
+      padding: 3px 6px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .plan-row:hover,
+    .plan-row:focus-visible {
+      background: rgba(127, 127, 127, .12);
+      outline: none;
+    }
+    .plan-icon {
+      text-align: center;
+    }
+    .plan-panel .plan-twisty {
+      width: 1.1em;
+      height: 1.5em;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5em;
+      text-align: center;
+    }
+    .plan-outline {
+      min-width: 1.6em;
+      color: var(--blue);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .plan-node.is-phase > .plan-row {
+      font-weight: 700;
+    }
+    .plan-row-count {
+      margin-left: 6px;
+      padding: 0 5px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+    .plan-panel .plan-note-badges {
+      display: inline-flex;
+      gap: 6px;
+      height: auto;
+      margin-left: 6px;
+      padding: 0 5px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: none;
+      font-size: 10px;
+      font-weight: 400;
+      line-height: 1.6;
+      vertical-align: 1px;
+    }
+    .plan-note-badges .k-fail,
+    .plan-note.k-fail .plan-note-head {
+      color: var(--red);
+    }
+    .plan-note-badges .k-learn,
+    .plan-note.k-learn .plan-note-head {
+      color: var(--gold);
+    }
+    .plan-note-badges .k-progress,
+    .plan-note.k-progress .plan-note-head {
+      color: var(--muted);
+    }
+    .plan-notes {
+      display: grid;
+      gap: 3px;
+      margin: 2px 0 6px 3.6em;
+      font-size: 12px;
+    }
+    .plan-note {
+      padding: 3px 8px;
+      border-left: 3px solid var(--line);
+      overflow-wrap: anywhere;
+    }
+    .plan-note.k-fail {
+      border-left-color: var(--red);
+    }
+    .plan-note.k-learn {
+      border-left-color: var(--gold);
+    }
+    .plan-note-head {
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .plan-row-title {
+      overflow-wrap: anywhere;
+    }
+    .plan-row-id {
+      margin-left: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .plan-row-reason {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+    .plan-node.is-task.st-in_progress > .plan-row {
+      border: 1px solid var(--green);
+      background: rgba(80, 250, 123, .1);
+      font-weight: 600;
+    }
+    .plan-node.st-in_progress > .plan-row .plan-icon {
+      color: var(--green);
+    }
+    .plan-node.st-blocked > .plan-row .plan-row-title {
+      color: var(--red);
+    }
+    .plan-node.st-cancelled > .plan-row {
+      opacity: .5;
+    }
+    .plan-node.st-cancelled > .plan-row .plan-row-title {
+      text-decoration: line-through;
+    }
+    .plan-node.st-done > .plan-row .plan-row-title {
+      color: var(--muted);
+    }
+    .plan-row-detail {
+      margin: 2px 0 6px 3.6em;
+      padding: 6px 8px;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .plan-meta {
+      display: grid;
+      grid-template-columns: 4.2em minmax(0, 1fr);
+      gap: 2px 8px;
+      margin: 0 0 6px;
+    }
+    .plan-meta dt {
+      color: var(--muted);
+    }
+    .plan-meta dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+    .plan-task-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .plan-raw-line {
+      padding: 2px 6px;
+      color: var(--muted);
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .plan-raw-line.is-task {
+      color: var(--amber, #ffb86c);
+    }
+    .plan-panel .plan-done-run {
+      justify-self: start;
+      height: 24px;
+      margin: 1px 0;
+      border-style: dashed;
+      color: var(--muted);
+    }
+    .plan-raw {
+      margin: 10px 0 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .plan-form {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .plan-form label {
+      display: grid;
+      gap: 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .plan-form input,
+    .plan-form select,
+    .plan-form textarea {
+      width: 100%;
+      min-height: 30px;
+      padding: 4px 6px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .plan-form textarea {
+      min-height: 64px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      resize: vertical;
+    }
+    .plan-form-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+    .plan-strong {
+      font-weight: 600;
+    }
+    .plan-track {
+      padding: 6px 8px;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+    }
+    .plan-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+    }
+    body.plan-open .toast {
+      z-index: 130;
+    }
+    @media (max-width: 640px) {
+      .plan-panel {
+        width: 100vw;
+        border-left: 0;
+      }
+      .plan-panel .plan-tabs button {
+        padding: 0 9px;
+      }
+    }
+
+    /* 详情标题栏右侧: 简版 Git + 归档状态 + 计划/归档按钮; 窄屏收进"⋯"菜单 */
+    .detail-plan-tools,
+    .settings-plan-actions {
+      display: flex;
+      flex: none;
+      gap: 6px;
+      align-items: center;
+      min-width: 0;
+      font-size: 12px;
+    }
+    .settings-plan-actions {
+      display: none;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .detail-plan-tools:empty,
+    .settings-plan-actions:empty {
+      display: none;
+    }
+    .dpt-git {
+      display: inline-flex;
+      gap: 6px;
+      color: var(--muted);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .dpt-git .cg-amber { color: var(--amber, #ffb86c); font-weight: 600; }
+    .dpt-git .cg-alert { color: var(--red); font-weight: 600; }
+    .dpt-git .cg-warn { color: var(--gold); font-weight: 600; }
+    .dpt-nogit {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .dpt-archive-running {
+      color: var(--amber, #ffb86c);
+      white-space: nowrap;
+    }
+    .detail-plan-tools button,
+    .settings-plan-actions button {
+      height: 28px;
+      padding: 0 9px;
+      font-size: 12px;
+    }
+    .detail-plan-tools button.is-disabled,
+    .settings-plan-actions button.is-disabled,
+    .detail-plan-tools button:disabled,
+    .settings-plan-actions button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    .detail-plan-tools .dpt-plan,
+    .settings-plan-actions .dpt-plan {
+      border-color: rgba(139, 233, 253, .42);
+      background: var(--soft-blue);
+      color: var(--blue);
+    }
+    .detail-plan-tools .dpt-archive,
+    .settings-plan-actions .dpt-archive {
+      border-color: rgba(255, 184, 108, .42);
+      background: rgba(255, 184, 108, .08);
+      color: var(--amber, #ffb86c);
+    }
+    .detail-plan-tools .dpt-archive-result,
+    .settings-plan-actions .dpt-archive-result {
+      max-width: 30em;
+      overflow: hidden;
+      border-style: dashed;
+      color: var(--green);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dpt-archive-result.is-empty {
+      color: var(--amber, #ffb86c);
+    }
+    .dpt-archive-result.is-error {
+      color: var(--red);
+    }
+    /* 卡片 Git 行: 归档标记 + 可点的当前任务 */
+    .card-git .cg-archive-run {
+      color: var(--amber, #ffb86c);
+    }
+    .card-git .cg-archive-done {
+      color: var(--green);
+    }
+    .card-git .cg-archive-done.is-error {
+      color: var(--red);
+    }
+    .card-git button.cg-task-link {
+      height: auto;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .card-git button.cg-task-link:hover {
+      text-decoration: underline;
+    }
+    /* 右下角 ⌁ 展开的 ESC 那一组: 计划 / 终端 / ESC 并排 (各宽度都在, 不再按断点藏) */
+    .float-menu button[hidden] {
+      display: none;
+    }
+    .float-menu .float-text {
+      padding: 0;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .float-menu .float-plan {
+      border-color: rgba(139, 233, 253, .44);
+      color: var(--blue);
+    }
+    .float-menu .float-plan.is-disabled {
+      border-color: rgba(248, 248, 242, .14);
+      color: var(--muted);
+      opacity: .5;
+    }
+    .detail-plan-tools .dpt-terminal,
+    .settings-plan-actions .dpt-terminal {
+      border-color: rgba(80, 250, 123, .42);
+      background: rgba(80, 250, 123, .08);
+      color: var(--green);
+    }
+    .detail-plan-tools .dpt-terminal.active,
+    .settings-plan-actions .dpt-terminal.active,
+    .float-menu .float-terminal.active {
+      border-color: var(--green);
+      background: rgba(80, 250, 123, .22);
+      color: var(--green);
+      box-shadow: inset 0 0 0 1px rgba(80, 250, 123, .16);
+    }
+    @media (max-width: 640px) {
+      .detail-plan-tools {
+        display: none;
+      }
+      .settings-plan-actions {
+        display: flex;
+      }
+      .settings-plan-actions:empty {
+        display: none;
+      }
+    }
+
     .path {
       display: none;
     }
@@ -1155,6 +1876,7 @@
 
     body.shared-files-open .empty,
     body.shared-files-open .timeline,
+    body.shared-files-open .terminal-panel,
     body.shared-files-open .raw-panel,
     body.shared-files-open .composer,
     body.shared-files-open .mobile-composer-float {
@@ -2335,17 +3057,30 @@
       background: #303241;
     }
 
+    /* 深色主题下的行内代码: 淡边框 (原来的 #dfe4d8 是浅色主题留下的, 在深底上是一圈刺眼的白框);
+       折行时每一段都画完整的圆角框, 不会出现断开的半个框。 */
     .markdown code {
-      border: 1px solid #dfe4d8;
+      border: 1px solid rgba(248, 248, 242, .14);
       border-radius: 5px;
       padding: 1px 4px;
       background: #f2f4ee;
       font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+    }
+
+    /* 表格里的代码只在空格处换行, plan_available 这类标识符不在字中间断开 (列会按它变宽, 放不下就
+       让表格在 .md-table-wrap 里横向滚动); 单个词比列的上限还长时才断开。 */
+    .markdown th code,
+    .markdown td code {
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
 
     .markdown pre {
       margin: 10px 0;
-      border: 1px solid #dfe4d8;
+      border: 1px solid var(--line);
       border-radius: 7px;
       background: #111714;
       color: #e8eee8;
@@ -2364,7 +3099,7 @@
     .markdown-copy-box {
       margin: 10px 0;
       overflow: hidden;
-      border: 1px solid #dfe4d8;
+      border: 1px solid var(--line);
       border-radius: 7px;
       background: #111714;
     }
@@ -2660,6 +3395,115 @@
       display: block;
     }
 
+    .terminal-panel {
+      display: none;
+      width: 100%;
+      min-height: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #282a36;
+      color: #f8f8f2;
+    }
+
+    .terminal-panel.visible {
+      display: block;
+    }
+
+    .terminal-older-status {
+      padding: 6px 12px 0;
+      color: var(--comment, #6272a4);
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .terminal-older-status:empty {
+      display: none;
+    }
+
+    /* 按容器宽度重排: 普通行自动换行; 纯框线 / 分隔行不换行, 截断成一条线。 */
+    .terminal-lines {
+      min-height: calc(100dvh - 230px);
+      padding: 6px 14px 12px;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans Mono CJK SC", "Sarasa Mono SC", monospace;
+      font-size: 13.5px;
+      line-height: 1.45;
+      font-variant-ligatures: none;
+      tab-size: 8;
+      user-select: text;
+      -webkit-user-select: text;
+      cursor: text;
+    }
+
+    .terminal-lines .tl {
+      min-height: 1.45em;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    /* 窗口已按查看者尺寸排好: 逐行原样显示, 不折行; 非 ASCII 字符按 tmux 的格子宽度摆 */
+    .terminal-lines.fit {
+      overflow-x: hidden;
+    }
+    .terminal-lines.fit .tl {
+      white-space: pre;
+      overflow-wrap: normal;
+    }
+    .terminal-lines.fit .tl.tx,
+    .terminal-lines .tl.tx {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .terminal-lines .c1,
+    .terminal-lines .c2,
+    .terminal-lines .cr {
+      display: inline-block;
+      overflow: hidden;
+      vertical-align: top;
+      text-align: center;
+    }
+    .terminal-lines .cr { text-align: left; white-space: pre; }
+    .terminal-lines .c1 { width: 1ch; }
+    .terminal-lines .c2 { width: 2ch; }
+    .terminal-probe {
+      position: absolute;
+      left: -99999px;
+      top: 0;
+      width: auto;
+      min-height: 0;
+      padding: 0;
+      white-space: pre;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .terminal-lines .tl.rule {
+      white-space: pre;
+      overflow: hidden;
+      color: #6272a4;
+    }
+
+    /* 对话记录 (tmux 之上接的更早内容) 和实时画面的衔接: 一条很淡的细线 */
+    .terminal-lines .tl.seam {
+      min-height: 0;
+      height: 0;
+      margin: 10px 0;
+      border-top: 1px solid rgba(98, 114, 164, .35);
+    }
+
+    .terminal-lines .terminal-empty {
+      padding: 18px 0;
+      color: var(--muted);
+      opacity: .7;
+      font-family: inherit;
+    }
+
+    @media (max-width: 760px) {
+      .terminal-lines {
+        padding: 4px 9px 10px;
+        font-size: 12.5px;
+      }
+    }
+
     .raw-panel pre {
       font-size: 12px;
     }
@@ -2762,26 +3606,47 @@
       color: var(--panel);
     }
 
+    /* ⌁ 圆: 容器就是这颗 42px 的圆, 展开/收起都不改变它的位置和尺寸。展开的那一组
+       (计划 / 终端 / ESC) 绝对定位挂在圆的左侧、横向排开 (row-reverse: 第一个紧挨着圆);
+       左边放不下就按 layoutFloatMenu() 算出的 max-width 换行 (圆在下半屏往上换, 上半屏往下换),
+       左边连一颗按钮都放不下时才改到右侧。 */
     .float-control {
       position: fixed;
       right: 22px;
       bottom: 92px;
       z-index: 90;
-      display: grid;
-      gap: 8px;
-      justify-items: end;
+      width: 42px;
+      height: 42px;
       touch-action: none;
     }
 
     .float-menu {
       display: none;
+      position: absolute;
+      top: -7px;
+      right: calc(100% + 8px);
+      width: max-content;
+      flex-direction: row-reverse;
+      flex-wrap: wrap;
       gap: 6px;
       padding: 6px;
       border: 1px solid var(--line);
-      border-radius: 999px;
+      border-radius: 28px;
       background: rgba(52, 55, 70, .82);
       backdrop-filter: blur(12px);
       box-shadow: var(--shadow);
+    }
+
+    .float-menu.wrap-up {
+      top: auto;
+      bottom: -7px;
+      flex-wrap: wrap-reverse;
+    }
+
+    .float-menu.open-right {
+      right: auto;
+      left: calc(100% + 8px);
+      flex-direction: row;
     }
 
     .float-control.open .float-menu {
@@ -3448,6 +4313,7 @@
             <details class="settings-panel" id="settingsPanel">
               <summary id="settingsSummary" title="设置">⋯</summary>
               <div class="settings-body">
+                <div class="settings-plan-actions" id="settingsPlanActions"></div>
                 <div class="settings-actions">
                   <button id="fontMinus" title="缩小文字">A-</button>
                   <button id="fontPlus" title="放大文字">A+</button>
@@ -3455,6 +4321,7 @@
                   <button id="toggleRaw" title="原始输出">Raw</button>
                   <button id="renamePane" title="修改前端展示名">改名</button>
                   <button id="reloadPane" title="刷新窗口">↻</button>
+                  <button id="openFullTerminal" title="把网页终端切到这个窗口并打开（会切换挂在同一 tmux 会话上所有终端客户端的当前窗口）">打开完整终端页</button>
                   <button id="closePane" title="安全关闭当前 tmux 窗口" disabled>关闭</button>
                 </div>
                 <div class="meta-grid" id="metaGrid"></div>
@@ -3463,6 +4330,7 @@
             </details>
           </div>
         </div>
+        <div class="detail-plan-tools" id="detailPlanTools"></div>
         <span id="liveStatus">实时同步准备中</span>
       </header>
       <div class="favorites-bar" id="favoritesBar" hidden></div>
@@ -3471,6 +4339,10 @@
         <div class="history-load-indicator" id="historyLoadIndicator" hidden></div>
         <div class="timeline-cache-notice" id="timelineCacheNotice" hidden></div>
         <div class="timeline" id="timeline"></div>
+        <section class="terminal-panel" id="terminalPanel" aria-label="tmux 终端视图">
+          <div class="terminal-older-status" id="terminalOlderStatus"></div>
+          <div class="terminal-lines" id="terminalText" title="双击空白处或按 End 跳到最新输出"></div>
+        </section>
         <div class="raw-panel" id="rawPanel"><pre id="rawText"></pre></div>
         <section class="shared-files-view" id="sharedFilesView">
           <div class="shared-files-panel view" id="sharedFilesPanel">
@@ -3555,14 +4427,37 @@
       </div>
     </div>
   </div>
+  <div class="plan-backdrop" id="planBackdrop" hidden></div>
+  <aside class="plan-panel" id="planPanel" hidden role="dialog" aria-modal="true" aria-labelledby="planTitle">
+    <header class="plan-head">
+      <div class="plan-head-main">
+        <div class="plan-title" id="planTitle">计划</div>
+        <div class="plan-sub" id="planSub"></div>
+      </div>
+      <div class="plan-head-actions">
+        <button type="button" id="planRefresh" title="立即重新读取计划">刷新</button>
+        <button type="button" id="planClose" aria-label="关闭计划面板">×</button>
+      </div>
+    </header>
+    <nav class="plan-tabs" id="planTabs" role="tablist" aria-label="计划面板">
+      <button type="button" role="tab" data-plan-tab="plan" aria-selected="true">计划</button>
+      <button type="button" role="tab" data-plan-tab="activity" aria-selected="false">动态</button>
+      <button type="button" role="tab" data-plan-tab="track" aria-selected="false" title="分拣未提交内容：该提交 / 该忽略 / 需判断">分拣</button>
+      <button type="button" role="tab" data-plan-tab="raw" aria-selected="false" title="只读查看计划原文">原文</button>
+    </nav>
+    <div class="plan-form" id="planForm" hidden></div>
+    <div class="plan-body" id="planBody" role="tabpanel"></div>
+  </aside>
   <div class="toast" id="toast"></div>
   <div class="update-banner" id="updateBanner">
     <span>卡片网站已更新，当前页面仍是旧版本</span>
     <button id="updateBannerReload" type="button">刷新</button>
   </div>
   <div class="float-control" id="floatControl">
-    <div class="float-menu">
+    <div class="float-menu" id="floatMenu">
       <button id="escKey" title="发送 ESC">ESC</button>
+      <button class="float-text float-terminal" id="floatTerminal" type="button" title="在卡片内切换对话 / tmux 视图" aria-pressed="false" hidden>终端</button>
+      <button class="float-text float-plan" id="floatPlan" type="button" title="打开这个窗口所在项目的计划" hidden>计划</button>
     </div>
     <button class="float-main" id="floatMain" title="控制">⌁</button>
   </div>
@@ -3573,6 +4468,7 @@
     const CAPTURE_HISTORY_RUNNING = 700;
     const CAPTURE_HISTORY_IDLE = 420;
     const CAPTURE_REQUEST_TIMEOUT_MS = 12000;
+    const TERMINAL_PAGE_LINES = 600;
     const FIXED_CATEGORY_NAMES = new Set(["最近", "全部", "收藏", "开发", "论文", "私人", "待处理", "其他"]);
 
     // "收藏"分类标签是后加的固定分类。已有用户的 localStorage/服务端 prefs 里存的
@@ -3584,6 +4480,37 @@
       const insertAt = allIdx === -1 ? categories.length : allIdx + 1;
       categories.splice(insertAt, 0, "收藏");
       return categories;
+    }
+
+    // 深链 ?pane=%2512 (即 %12, 终端页的"卡片"按钮用; 手输 ?pane=12 也认): 打开时直接进入这个
+    // 窗口的详情。读完就从地址栏去掉, 之后刷新不会再被拉回这个窗口。
+    function paneFromDeepLink(search) {
+      const raw = (new URLSearchParams(search || "").get("pane") || "").trim();
+      if (/^%\d+$/.test(raw)) return raw;
+      return /^\d+$/.test(raw) ? `%${raw}` : null;
+    }
+
+    function stripDeepLinkPane(loc, hist) {
+      const params = new URLSearchParams(loc.search);
+      if (!params.has("pane")) return;
+      params.delete("pane");
+      const query = params.toString();
+      hist.replaceState(null, "", loc.pathname + (query ? `?${query}` : "") + loc.hash);
+    }
+
+    const DEEP_LINK_PANE = paneFromDeepLink(location.search);
+    stripDeepLinkPane(location, history);
+
+    // 第一次拿到窗口列表时应用深链; 窗口已经不在就照常打开当前窗口, 并提示一句。
+    function applyDeepLinkPane(panes) {
+      if (!DEEP_LINK_PANE || state.deepLinkApplied) return;
+      state.deepLinkApplied = true;
+      if (panes.some((pane) => pane.pane_id === DEEP_LINK_PANE)) {
+        state.selected = DEEP_LINK_PANE;
+        requestBottomScroll(state.selected);
+      } else {
+        showToast(`没找到窗口 ${DEEP_LINK_PANE}，打开的是当前窗口`);
+      }
     }
 
     const state = {
@@ -3602,6 +4529,19 @@
       assetVersion: null,
       assetUpdateNoticeShown: false,
       rawVisible: false,
+      terminalOpen: false,
+      terminalPagesByPane: new Map(),
+      terminalTranscriptByPane: new Map(),
+      terminalCaptureSeq: 0,
+      terminalAbortController: null,
+      terminalLoadingOlder: false,
+      terminalFollowLatest: true,
+      terminalPollTimer: 0,
+      terminalUnchangedPolls: 0,
+      terminalLastChangeAt: 0,
+      terminalResizeTimer: 0,
+      terminalResizeSent: new Map(),
+      terminalProbe: null,
       search: "",
       kind: "",
       activeCategory: localStorage.getItem("tmuxCardActiveCategory") || "all",
@@ -3818,6 +4758,8 @@
       : "(?!)";
     const PUBLIC_SHARE_HOST = String(AGENT_BUS_CONFIG.publicShareHost || "").trim().toLowerCase();
     const PUBLIC_SHARE_DIR = String(AGENT_BUS_CONFIG.publicShareDir || "share-public").replace(/^\/+|\/+$/g, "");
+    // Full web terminal page (e.g. a ttyd on the same host); "" hides "打开完整终端页".
+    const FULL_TERMINAL_URL = String(AGENT_BUS_CONFIG.terminalUrl || "").trim();
     const LOCAL_ARTIFACT_EXT_RE = /\.(?:pdf|docx?|pptx?|xlsx?|png|jpe?g|gif|webp|avif|bmp|svg|mp4|webm|og[gv]|mov|m4v|mkv|mp3|wav|m4a|aac|flac|zip|7z|tar|gz|bz2|xz|html?)$/i;
     const LOCAL_ARTIFACT_SENSITIVE_RE = /(?:^|[._-])(?:credentials?|secrets?|passwords?|passwd|tokens?|api[-_]?keys?|id[-_](?:rsa|ed25519))(?:[._-]|$)/i;
 
@@ -4335,28 +5277,24 @@
           paragraph = [];
         }
       };
+      // 列表按缩进嵌套: list = { type, indent, items: [{ text, continuation, children: [list] }] },
+      // listStack 是从最外层到当前层的列表链。
+      let listStack = [];
+      const renderList = (node) => `<${node.type}>${node.items.map((item) => `<li>${[
+        renderInlineMarkdown(item.text),
+        ...item.continuation.map((line) => `<p>${renderInlineMarkdown(line)}</p>`),
+        ...item.children.map(renderList),
+      ].join("")}</li>`).join("")}</${node.type}>`;
       const flushList = () => {
         if (list) {
-          const items = list.items.map((item) => {
-            const nested = item.subitems && item.subitems.length
-              ? `<ul>${item.subitems.map((subitem) => {
-                  const subBody = [
-                    renderInlineMarkdown(subitem.text),
-                    ...subitem.continuation.map((line) => `<p>${renderInlineMarkdown(line)}</p>`)
-                  ].join("");
-                  return `<li>${subBody}</li>`;
-                }).join("")}</ul>`
-              : "";
-            const body = [
-              renderInlineMarkdown(item.text),
-              ...item.continuation.map((line) => `<p>${renderInlineMarkdown(line)}</p>`),
-              nested
-            ].join("");
-            return `<li>${body}</li>`;
-          }).join("");
-          html.push(`<${list.type}>${items}</${list.type}>`);
+          html.push(renderList(list));
           list = null;
         }
+        listStack = [];
+      };
+      const deepestListItem = () => {
+        const top = listStack[listStack.length - 1];
+        return top?.items[top.items.length - 1] || null;
       };
       const flushQuote = () => {
         if (quote.length) {
@@ -4463,18 +5401,40 @@
         if (bullet || ordered) {
           flushParagraph();
           flushQuote();
-          if (bullet && list && list.type === "ol" && list.items.length) {
-            const currentItem = list.items[list.items.length - 1];
-            currentItem.subitems = currentItem.subitems || [];
-            currentItem.subitems.push({ text: bullet[1], continuation: [] });
-            continue;
-          }
           const type = ordered ? "ol" : "ul";
-          if (!list || list.type !== type) {
-            flushList();
-            list = { type, items: [] };
+          const indent = line.replace(/\t/g, "    ").search(/\S/);
+          const newItem = { text: (bullet || ordered)[1], continuation: [], children: [] };
+          // 比当前层缩进少: 回到外层
+          while (listStack.length > 1 && listStack[listStack.length - 1].indent > indent) listStack.pop();
+          let top = listStack[listStack.length - 1];
+          if (top && top.virtual && ordered && indent <= top.indent) {
+            listStack.pop();  // 顶格的 "- " 子项之后又来了编号项: 回到编号列表
+            top = listStack[listStack.length - 1];
           }
-          list.items.push({ text: (bullet || ordered)[1], continuation: [], subitems: [] });
+          if (top && indent > top.indent && top.items.length) {
+            // 缩进更深: 挂到上一项下面, 成为子列表
+            const child = { type, indent, items: [newItem] };
+            top.items[top.items.length - 1].children.push(child);
+            listStack.push(child);
+          } else if (top && top.type === type) {
+            top.items.push(newItem);
+          } else if (top && bullet && top.type === "ol" && top.items.length) {
+            // 老规矩: 编号项下面顶格写的 "- " 当作这一项的子项 (Codex 常这样输出)
+            const child = { type: "ul", indent, items: [newItem], virtual: true };
+            top.items[top.items.length - 1].children.push(child);
+            listStack.push(child);
+          } else if (top && listStack.length > 1) {
+            // 同一缩进换了列表类型: 在同一个父项下另起一个列表
+            listStack.pop();
+            const parent = listStack[listStack.length - 1];
+            const sibling = { type, indent, items: [newItem] };
+            parent.items[parent.items.length - 1].children.push(sibling);
+            listStack.push(sibling);
+          } else {
+            flushList();
+            list = { type, indent, items: [newItem] };
+            listStack = [list];
+          }
           list.sawBlank = false;  // 又来了一项 → 松散列表继续, 清空行标记
           continue;
         }
@@ -4487,8 +5447,9 @@
           continue;
         }
 
-        if (list && list.type === "ol" && list.items.length) {
-          const indented = /^\s{2,}\S/.test(line);
+        const indentedLine = /^\s{2,}\S/.test(line);
+        if (list && (list.type === "ol" || indentedLine) && list.items.length) {
+          const indented = indentedLine;
           if (list.sawBlank && !indented) {
             // 列表后有空行, 又来了一个顶格的非列表行(如 **逐句中文** 这类小标题/新段落)
             // → 列表到此结束, 这行当新段落; 后面若再出现 "1." 会开一个从 1 重新计数的新列表,
@@ -4499,13 +5460,9 @@
             continue;
           }
           flushQuote();
-          const currentItem = list.items[list.items.length - 1];
-          const lastSubitem = currentItem.subitems && currentItem.subitems[currentItem.subitems.length - 1];
-          if (lastSubitem && indented) {
-            lastSubitem.continuation.push(trimmed);
-          } else {
-            currentItem.continuation.push(trimmed);
-          }
+          // 缩进的续行接在最深那一项; 顶格的续行接在最外层的最后一项
+          const target = indented ? deepestListItem() : list.items[list.items.length - 1];
+          target.continuation.push(trimmed);
           continue;
         }
 
@@ -4733,12 +5690,18 @@
         textarea.style.height = "0px";
         return;
       }
+      // 先量高度再定高: 中间的 height=auto 会让中央区域瞬间变高, 浏览器把贴底的 scrollTop 夹小,
+      // 定回高度后画面就上移一截 —— 下一次"跟随到底"再把它拉下来, 看起来就是打字时一直往下抖。
+      // 所以记住中央区域的 scrollTop, 定高后原样放回。
+      const wrap = document.querySelector(".timeline-wrap");
+      const keptScrollTop = wrap ? wrap.scrollTop : 0;
       textarea.style.height = "auto";
       // 手机端输入框高度固定，不随打字内容一直往上长（会挡住上面的对话内容）；
       // 超出的文字用输入框自带的内部滚动，不撑高外框。
       const minHeight = isMobileLayout() && state.mobileComposerExpanded ? 96 : 42;
       const maxHeight = isMobileLayout() ? 96 : 160;
       textarea.style.height = `${Math.min(maxHeight, Math.max(minHeight, textarea.scrollHeight))}px`;
+      if (wrap && wrap.scrollTop !== keptScrollTop) wrap.scrollTop = keptScrollTop;
     }
 
     function isMobileLayout() {
@@ -4805,23 +5768,18 @@
 
     function toggleMobileComposer() {
       if (state.mobileComposerExpanded) {
-        submitAndCollapseMobileComposer();
+        collapseMobileComposerKeepingDraft();
         return;
       }
       setMobileComposer(true, true);
     }
 
-    function submitAndCollapseMobileComposer() {
-      const textarea = el("composerText");
-      if (textarea.value.trim()) {
-        // sendToPane snapshots state.selected before any outside target (for
-        // example a favourite/card) changes the active pane.  It also closes
-        // the composer immediately on mobile and owns duplicate suppression.
-        sendToPane(true);
-        return true;
-      }
+    // 收起对话框只是收起: 草稿原样留在这个窗口名下 (下次打开还在)。
+    // 只有"发送"按钮或发送快捷键才会发出去 (以前收起会自动发送)。
+    function collapseMobileComposerKeepingDraft() {
+      saveDraft();
+      persistDraftsNow();
       setMobileComposer(false, false);
-      return false;
     }
 
     function handleOutsideMobileComposerClick(event) {
@@ -4829,9 +5787,9 @@
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
       if (target.closest(".composer, #mobileComposerFloat, #mobileComposerToggle")) return;
-      // Capture phase is intentional: when the user taps another pane, send
-      // the draft to the pane it was written for before selection changes.
-      submitAndCollapseMobileComposer();
+      // Capture phase is intentional: the draft is saved under the pane it was
+      // written for before a tap on another card changes the selection.
+      collapseMobileComposerKeepingDraft();
     }
 
     function applyMobileComposerState() {
@@ -5459,6 +6417,11 @@
         return;
       }
       if (nextOpen && state.sharedFilesOpen) setSharedFilesOpen(false);
+      if (nextOpen && state.terminalOpen) {
+        state.terminalOpen = false;
+        state.terminalAbortController?.abort();
+        applyTerminalMode();
+      }
       state.traceOpen = nextOpen;
       document.body.classList.toggle("trace-open", state.traceOpen);
       el("traceToggle")?.classList.toggle("active", state.traceOpen);
@@ -5481,11 +6444,17 @@
           renderMeta(pane);
         }
       }
+      renderDetailPlanTools();
       updateMobileControls();
     }
 
     function setSharedFilesOpen(open) {
       if (open && state.traceOpen) setTraceOpen(false);
+      if (open && state.terminalOpen) {
+        state.terminalOpen = false;
+        state.terminalAbortController?.abort();
+        applyTerminalMode();
+      }
       state.sharedFilesOpen = Boolean(open);
       document.body.classList.toggle("shared-files-open", state.sharedFilesOpen);
       const toggle = el("sharedFilesToggle");
@@ -5507,6 +6476,7 @@
         loadDraft(state.selected);
         loadCapture(state.selected, true);
       }
+      renderDetailPlanTools();
       updateMobileControls();
     }
 
@@ -5956,7 +6926,16 @@
 
     function handleTimelineScroll() {
       scheduleMobileControlCollisionCheck();
-      if (!state.selected || state.rawVisible || state.sharedFilesOpen) return;
+      if (!state.selected || state.sharedFilesOpen) return;
+      const wrap = document.querySelector(".timeline-wrap");
+      if (!wrap) return;
+      if (state.terminalOpen) {
+        // 往上翻暂停跟随; 手动滚回底部 (距底 < 40px) 自动恢复。
+        state.terminalFollowLatest = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 40;
+        if (wrap.scrollTop <= 80) loadOlderTerminal(state.selected);
+        return;
+      }
+      if (state.rawVisible) return;
       // /api/history_before only ever resolves a transcript for Claude/Codex
       // panes (see server.py); a plain shell pane has no history concept at
       // all, so skip the endpoint entirely rather than firing a pointless
@@ -5964,8 +6943,6 @@
       const pane = state.panes.find((item) => item.pane_id === state.selected);
       if (!pane || (pane.kind !== "Claude" && pane.kind !== "Codex")) return;
       if (state.currentHistoryByPane.get(state.selected)?.quality === "degraded") return;
-      const wrap = document.querySelector(".timeline-wrap");
-      if (!wrap) return;
       // Mirror the existing 80px "near edge" threshold used for the bottom
       // (see isReadingHistory in loadCapture) for consistency, applied to the
       // top of the scroll range instead.
@@ -6837,6 +7814,7 @@
       state.lastThinkingSendAtByPane[paneId] = now;
       state.optimisticRunningUntil[paneId] = now + durationMs;
       state.fastUntil = Math.max(state.fastUntil, now + durationMs);
+      if (paneId === state.selected) kickTerminalPoll();
       state.lastPaneRefreshAt = 0;
       resetTimelineCache();
       renderCards();
@@ -7255,7 +8233,7 @@
           ? '<div class="capture-sync-inline is-error" role="status">最新记录读取超时；旧窗口内容不会混入。<button type="button" data-capture-retry>立即重试</button></div>'
           : '<div class="capture-sync-inline" role="status">正在同步这个窗口的最新记录；旧窗口内容不会混入。</div>'
         : "";
-      el("timeline").style.display = state.rawVisible ? "none" : "grid";
+      el("timeline").style.display = state.rawVisible || state.terminalOpen ? "none" : "grid";
       const lastOutputIndex = lastVisibleOutputIndex(visibleBlocks);
       const signature = timelineSignature(visibleBlocks, thinking, lastOutputIndex);
       if (signature === state.lastTimelineSignature) {
@@ -7768,9 +8746,24 @@
     }
 
     function applyRawMode() {
-      el("rawPanel").classList.toggle("visible", state.rawVisible);
-      el("timeline").style.display = state.rawVisible ? "none" : "grid";
+      el("rawPanel").classList.toggle("visible", state.rawVisible && !state.terminalOpen);
+      el("timeline").style.display = state.rawVisible || state.terminalOpen ? "none" : "grid";
       el("toggleRaw").textContent = state.rawVisible ? "TL" : "Raw";
+      el("toggleRaw").classList.toggle("active", state.rawVisible);
+    }
+
+    function applyTerminalMode() {
+      el("terminalPanel").classList.toggle("visible", state.terminalOpen);
+      if (state.terminalOpen) {
+        if (!state.terminalPollTimer) scheduleTerminalPoll(0);
+        scheduleTerminalResize(state.selected);
+      } else {
+        clearTimeout(state.terminalPollTimer);
+        state.terminalPollTimer = 0;
+      }
+      applyRawMode();
+      if (state.terminalOpen && state.selected) renderTerminalPage(state.selected);
+      scheduleMobileControlCollisionCheck();
     }
 
     function traceOverviewForPane(pane) {
@@ -7820,6 +8813,103 @@
         : '<div class="card-trace-overview is-empty">轨迹概况：按需读取</div>';
     }
 
+    function formatAgeShort(seconds) {
+      const s = Number(seconds);
+      if (!Number.isFinite(s) || s < 0) return "";
+      if (s < 60) return "刚刚";
+      if (s < 3600) return `${Math.floor(s / 60)}分钟前`;
+      if (s < 86400) return `${Math.floor(s / 3600)}小时前`;
+      if (s < 86400 * 30) return `${Math.floor(s / 86400)}天前`;
+      if (s < 86400 * 365) return `${Math.floor(s / (86400 * 30))}个月前`;
+      return `${Math.floor(s / (86400 * 365))}年前`;
+    }
+
+    // 待归档颜色: 0 不显示; 数量多或久未归档 → 琥珀; 很多或一周没归档 → 红。
+    // 没有任何提交(ageSeconds 为空)但有待归档 = 从未归档, 按琥珀提示。
+    function gitPendingLevel(count, ageSeconds) {
+      const n = Number(count) || 0;
+      if (n <= 0) return "";
+      const age = Number(ageSeconds);
+      const known = ageSeconds != null && Number.isFinite(age);
+      if (n >= 200 || (known && age > 7 * 86400)) return "red";
+      if (n >= 50 || !known || age > 86400) return "amber";
+      return "";
+    }
+
+    // 按显示宽度截断(汉字/全角算 2, 其余算 1), 超出加 …
+    function truncateDisplay(text, maxUnits) {
+      const chars = Array.from(String(text || ""));
+      let units = 0;
+      let out = "";
+      for (const ch of chars) {
+        const width = ch.codePointAt(0) >= 0x1100 ? 2 : 1;
+        if (units + width > maxUnits) return `${out}…`;
+        units += width;
+        out += ch;
+      }
+      return out;
+    }
+
+    // 卡片底部 Git 小字行: [归档中/归档✓] 分支 · 待归档 N · 未推送 N/无远端 · 上次归档 · ▶ 当前任务标题。
+    // 后端 /api/panes 的 pane.git 缺失 = 不在 git 仓库 → 不渲染。
+    function cardGitHtml(pane) {
+      const g = pane && pane.git;
+      if (!g || typeof g !== "object") return "";
+      if (g.state === "pending") return '<div class="card-git is-muted">Git 读取中…</div>';
+      if (g.state !== "ok") {
+        return `<div class="card-git is-muted" title="${escapeHtml(g.error || "git 命令超时或失败")}">Git 状态未知</div>`;
+      }
+      const parts = [];
+      const archiveBadge = cardArchiveBadgeHtml(pane);
+      if (archiveBadge) parts.push(archiveBadge);
+      if (g.branch) parts.push(`<span class="cg-branch">${escapeHtml(g.branch)}</span>`);
+      const countText = (n) => (n >= 999 ? "999+" : String(n));
+      const positive = (value) => {
+        const n = Number(value);
+        return value != null && Number.isFinite(n) && n > 0 ? n : 0;
+      };
+      if (g.modified != null || g.untracked != null) {
+        // git status 已排除被忽略的文件: 新文件(未跟踪) + 已追踪文件的未提交改动 = 还没归档的量。
+        const modified = positive(g.modified);
+        const untracked = positive(g.untracked);
+        const pending = modified + untracked;
+        if (pending) {
+          const level = gitPendingLevel(pending, g.last_commit_age);
+          const cls = level === "red" ? " cg-alert" : level === "amber" ? " cg-amber" : "";
+          const tip = `新文件 ${untracked}（未跟踪且未忽略）· 改动 ${modified}（已追踪、未提交）`;
+          parts.push(
+            `<span class="cg-pending${cls}" title="${tip}">待归档 ${countText(pending)}` +
+            `<span class="cg-split">新 ${countText(untracked)} · 改 ${countText(modified)}</span></span>`,
+          );
+        }
+      } else {
+        const dirty = positive(g.dirty);  // 旧后端只有合计数
+        if (dirty) parts.push(`<span class="cg-dirty${dirty >= 50 ? " cg-alert" : ""}">未提交 ${countText(dirty)}</span>`);
+      }
+      const ahead = Number(g.ahead);
+      if (g.has_remote === false) {
+        parts.push('<span class="cg-remote cg-warn">无远端</span>');
+      } else if (g.ahead != null && Number.isFinite(ahead) && ahead > 0) {
+        parts.push(`<span class="cg-ahead cg-warn">未推送 ${ahead}</span>`);
+      }
+      const age = g.last_commit_age != null ? formatAgeShort(g.last_commit_age) : "";
+      if (age) parts.push(`<span class="cg-age">上次归档 ${age}</span>`);
+      if (g.task) {
+        const title = typeof g.task_title === "string" ? g.task_title.trim() : "";
+        const label = title ? truncateDisplay(title, 32) : g.task;
+        const tip = title
+          ? `任务 ${g.task}：${title}${g.task_gate ? `；验收：${g.task_gate}` : ""}`
+          : `任务 ${g.task}`;
+        // 有计划时 ▶ 任务标题可点, 直接打开计划面板 (卡片上不再放"计划""归档"按钮)。
+        parts.push(g.has_plan && pane.pane_id
+          ? `<button type="button" class="cg-task cg-task-link" data-card-plan="${escapeHtml(pane.pane_id)}" title="${escapeHtml(tip)}（点开看计划）">▶ ${escapeHtml(label)}</button>`
+          : `<span class="cg-task" title="${escapeHtml(tip)}">▶ ${escapeHtml(label)}</span>`);
+      }
+      if (!parts.length) return "";
+      const tip = g.last_commit_subject ? `最近提交：${g.last_commit_subject}` : (g.root || "");
+      return `<div class="card-git" title="${escapeHtml(tip)}">${parts.join("")}</div>`;
+    }
+
     async function loadPanes(options = {}) {
       const includeCapture = options.includeCapture !== false;
       const light = Boolean(options.light);
@@ -7862,6 +8952,7 @@
         if (model) state.paneModels[pane.pane_id] = model;
       });
       localStorage.setItem("tmuxCardPaneModels", JSON.stringify(state.paneModels));
+      applyDeepLinkPane(state.panes);
       if (state.selected && !state.panes.some((pane) => pane.pane_id === state.selected)) {
         state.selected = state.panes.find((pane) => pane.active)?.pane_id || state.panes[0]?.pane_id || null;
         state.currentCapturePane = null;
@@ -7875,6 +8966,7 @@
       if (state.selected && state.draftPaneLoaded !== state.selected) {
         loadDraft(state.selected);
         state.draftPaneLoaded = state.selected;
+        syncTerminalModeForPane(state.selected);
       }
       const selectedInstanceAfterLoad = tracePaneInstanceKey(
         state.panes.find((pane) => pane.pane_id === state.selected)
@@ -7898,6 +8990,7 @@
       }
       updateLastPromptButton();
       updateMobileControls();
+      renderDetailPlanTools();
       const nextPaneListHash = paneListSignature(state.panes);
       if (nextPaneListHash !== state.lastPaneListHash) {
         const sidebar = document.querySelector(".sidebar");
@@ -7909,7 +9002,8 @@
         sidebar.scrollTop = previousSidebarTop;
       }
       if (includeCapture && state.selected && !state.sharedFilesOpen) {
-        await loadCapture(state.selected, false);
+        if (state.terminalOpen) kickTerminalPoll();
+        else await loadCapture(state.selected, false);
       }
     }
 
@@ -8219,6 +9313,1842 @@
       });
     }
 
+    // ---- 卡片"计划"面板 (可选集成, 默认标签页就是计划文件本身) ----------------------
+    // 数据来自 GET /api/plan?pane=: 服务端只按 pane 的 live cwd 找项目, 这里从不传路径。
+    // "计划"标签按 raw 原文渲染 (标题 / stamp / Done Criteria / Current Coordinate /
+    // Active Work 勾选清单树 / 其余 ## 段 markdown); 任务的状态与元数据取服务端 plan list
+    // 的解析结果 (按 ID 对上), 不在前端重写解析。写操作只走 POST /api/plan/action 白名单,
+    // 由服务端配置的 plan CLI (CARDS_TOP_CLI) 完成 (compare-and-swap、校验、留痕都在 CLI 里)。
+    const PLAN_REFRESH_MS = 15000;
+    const PLAN_STATE_LABELS = { in_progress: "进行中", pending: "待办", blocked: "阻塞", done: "完成", cancelled: "取消" };
+    const PLAN_STATE_ICONS = { done: "✅", in_progress: "▶", pending: "☐", blocked: "⛔", cancelled: "✕" };
+    const PLAN_NOTE_KINDS = { progress: "进展", fail: "失败", learn: "心得" };
+    // 计划文件的任务行 / Current Coordinate 行格式 (见 docs/plan-integration.md), 只用来把原文行对到任务 ID。
+    const PLAN_TASK_LINE_RE = /^\s*[-*]\s+\[([ xX])\]\s+(P\d+(?:\.[A-Za-z0-9]+)+)\s+(.+?)\s*$/;
+    const PLAN_CHECKBOX_RE = /^\s*[-*]\s+\[[ xX]\]\s+/;
+    const PLAN_COORD_RE = /^\s*-\s*(Goal|Current task|Next task|Latest learning|Blocker)\s*:\s*(.*?)\s*$/i;
+    const PLAN_COORD_LABELS = { goal: "目标", "current task": "当前任务", "next task": "下一步", "latest learning": "最新心得", blocker: "卡点" };
+    const PLAN_OPEN_SECTIONS_RE = /Phase\s*进展|决策表|错误表/i;
+    const PLAN_META_FIELDS = [["deps", "依赖"], ["scopes", "范围"], ["gates", "验收"], ["evidence", "证据"], ["reason", "原因"], ["no_artifact_reason", "无产出原因"]];
+    const planState = {
+      pane: "", data: null, tab: "plan", timer: null, loading: false, track: null, trackLoading: false,
+      showAll: false, openTasks: new Set(), openRuns: new Set(), openNotes: new Set(), expanded: new Map(),
+      sections: {}, needScroll: false,
+    };
+
+    // 归档按钮置灰的原因; 服务端 /api/panes 的 archive_blocker 是真源 (不是 Git 仓库不算原因:
+    // 归档时 AI 可以建仓)。旧服务端没给这个字段时按同样规则在本地算。
+    function paneArchiveBlocker(pane) {
+      if (!pane) return "窗口不存在";
+      if (typeof pane.archive_blocker === "string") return pane.archive_blocker;
+      if (pane.archive?.state === "running") return "归档进行中，等结果出来再发";
+      if (!["Claude", "Codex"].includes(pane.kind)) return "窗口里没有 AI 进程（Claude/Codex），不能归档";
+      if (pane.ai_alive === false) return "窗口里的 AI 进程已退出，不能归档";
+      return "";
+    }
+
+    const PLAN_MISSING_TEXT = "这个项目还没有计划（让 AI 用 plan 命令初始化一份）";
+
+    // 有没有计划: 服务端 plan_available (不依赖 Git, 见 plan_search_root), 旧字段 git.has_plan 兜底。
+    function panePlanAvailable(pane) {
+      if (!pane) return false;
+      if (typeof pane.plan_available === "boolean") return pane.plan_available;
+      return Boolean(pane.git?.has_plan);
+    }
+
+    function panePlanReason(pane) {
+      return panePlanAvailable(pane) ? "" : (pane?.plan_reason || PLAN_MISSING_TEXT);
+    }
+
+    function paneCanArchive(pane) {
+      return !paneArchiveBlocker(pane);
+    }
+
+    // 计划原文 → 文档结构: 标题 / 🧭 stamp / Done Criteria / 前言 / 各 ## 段 (按原顺序)。
+    function parsePlanDocument(raw) {
+      const lines = String(raw || "").replace(/\r\n?/g, "\n").split("\n");
+      const doc = { title: "", stamp: "", doneCriteria: "", intro: [], sections: [] };
+      let section = null;
+      let inDone = false;
+      for (const line of lines) {
+        const heading = /^##\s+(.+?)\s*#*\s*$/.exec(line);
+        if (heading) {
+          section = { heading: heading[1], lines: [] };
+          doc.sections.push(section);
+          continue;
+        }
+        if (section) {
+          section.lines.push(line);
+          continue;
+        }
+        const text = line.trim();
+        const done = /^>\s*\**Done Criteria\**\s*[:：]\s*(.*)$/i.exec(text);
+        if (!doc.title && /^#\s+/.test(text)) {
+          doc.title = text.replace(/^#\s+/, "");
+        } else if (!doc.stamp && (/^🧭/.test(text) || /task=\[/.test(text))) {
+          doc.stamp = text;
+        } else if (done && !doc.doneCriteria) {
+          doc.doneCriteria = done[1];
+          inDone = true;
+          continue;
+        } else if (inDone && /^>/.test(text)) {
+          doc.doneCriteria += `\n${text.replace(/^>\s?/, "")}`;
+          continue;
+        } else {
+          doc.intro.push(line);
+        }
+        inDone = false;
+      }
+      return doc;
+    }
+
+    // 虚拟阶段节点的名字: 先看 stamp "🧭 当前 [P3.9] task=[…] 名字", 再看"Phase 进展"表第一列。
+    function planPhaseNames(doc) {
+      const names = {};
+      const stamp = /\[(P\d+(?:\.[A-Za-z0-9]+)*)\](.*)$/.exec(doc.stamp || "");
+      if (stamp) {
+        const name = stamp[2].replace(/^\s*task=\[[^\]]*\]/i, "").trim();
+        if (name) names[stamp[1]] = name;
+      }
+      const phase = (doc.sections || []).find((section) => /Phase\s*进展/i.test(section.heading));
+      for (const line of phase?.lines || []) {
+        const cells = line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.replace(/\*+/g, "").trim());
+        if (cells.length >= 2 && /^P\d+(?:\.[A-Za-z0-9]+)*$/.test(cells[0]) && cells[1] && !names[cells[0]]) names[cells[0]] = cells[1];
+      }
+      return names;
+    }
+
+    // Active Work 行 → 大纲树 (planning-with-files 式)。
+    // - 子任务 = 父 ID + ".段", 挂到最近的已存在祖先下; 祖先都不存在就留在上一层。
+    // - 某个前缀 (如 P3.9) 下有 ≥2 个分支、却没有这个 ID 的任务时, 生成虚拟阶段节点,
+    //   状态由子项汇总。只有 1 个分支的前缀不生成, 免得出现一串单子节点。
+    // - 对不上任务的行 (格式坏、ID 不在列表里、说明文字) 原样保留, 跟在上一个任务后面。
+    // - 同层按原文出现顺序 (虚拟节点取其第一个子孙的位置)。
+    function buildPlanTaskTree(lines, tasks, phaseNames = {}) {
+      const byId = new Map();
+      (tasks || []).forEach((task) => {
+        if (task && task.id && !byId.has(task.id)) byId.set(task.id, task);
+      });
+      const nodes = new Map();
+      const taskNodes = [];
+      const raws = [];
+      (lines || []).forEach((line, index) => {
+        if (!String(line).trim()) return;
+        const match = PLAN_TASK_LINE_RE.exec(line);
+        const task = match ? byId.get(match[2]) : null;
+        if (task && !nodes.has(task.id)) {
+          const node = { kind: "task", id: task.id, task, children: [], order: index };
+          nodes.set(task.id, node);
+          taskNodes.push(node);
+        } else {
+          raws.push({ kind: "raw", text: String(line), checkbox: PLAN_CHECKBOX_RE.test(line), order: index, after: taskNodes.at(-1) || null });
+        }
+      });
+      const branches = new Map();
+      for (const node of taskNodes) {
+        const segs = node.id.split(".");
+        for (let n = 1; n < segs.length; n += 1) {
+          const prefix = segs.slice(0, n).join(".");
+          if (!branches.has(prefix)) branches.set(prefix, new Set());
+          branches.get(prefix).add(segs.slice(0, n + 1).join("."));
+        }
+      }
+      for (const [prefix, set] of branches) {
+        if (set.size >= 2 && !nodes.has(prefix)) {
+          const name = phaseNames[prefix] || "";
+          nodes.set(prefix, { kind: "phase", id: prefix, name, children: [], order: Infinity });
+        }
+      }
+      const parentOf = (id) => {
+        for (let cut = id.lastIndexOf("."); cut > 0; cut = id.lastIndexOf(".", cut - 1)) {
+          const parent = nodes.get(id.slice(0, cut));
+          if (parent) return parent;
+        }
+        return null;
+      };
+      const roots = [];
+      // 先挂任务 (更新虚拟节点的 order = 第一个子孙的位置), 再挂虚拟节点, 最后挂原样行。
+      for (const node of taskNodes) {
+        const parent = parentOf(node.id);
+        (parent ? parent.children : roots).push(node);
+        for (let up = parent; up; up = parentOf(up.id)) up.order = Math.min(up.order, node.order);
+      }
+      [...nodes.values()].filter((node) => node.kind === "phase").sort((a, b) => b.id.length - a.id.length).forEach((node) => {
+        if (!node.children.length) return;
+        const parent = parentOf(node.id);
+        (parent ? parent.children : roots).push(node);
+      });
+      for (const raw of raws) {
+        const parent = raw.after ? parentOf(raw.after.id) : null;
+        (parent ? parent.children : roots).push(raw);
+      }
+      const sortLevel = (level) => {
+        level.sort((a, b) => a.order - b.order);
+        level.forEach((entry) => entry.children && sortLevel(entry.children));
+        return level;
+      };
+      sortLevel(roots);
+      // 汇总与大纲编号 (1 / 1.1 / 1.1.1…, 只给任务和阶段节点编号, 原样行不占号)。
+      const summarize = (node) => {
+        const agg = { done: 0, total: 0, in_progress: 0, blocked: 0, open: 0 };
+        for (const child of node.children) {
+          if (child.kind === "raw") continue;
+          const sub = summarize(child);
+          if (child.kind === "task") {
+            const st = child.task.state;
+            if (st !== "cancelled") agg.total += 1;
+            if (st === "done") agg.done += 1;
+            if (st === "in_progress") agg.in_progress += 1;
+            if (st === "blocked") agg.blocked += 1;
+            if (!["done", "cancelled"].includes(st)) agg.open += 1;
+          }
+          for (const key of Object.keys(agg)) agg[key] += sub[key];
+        }
+        node.agg = agg;
+        if (node.kind === "phase") {
+          node.state = agg.in_progress ? "in_progress" : agg.blocked ? "blocked" : agg.open ? "pending" : "done";
+        }
+        return agg;
+      };
+      const number = (level, prefix) => {
+        let n = 0;
+        for (const entry of level) {
+          if (entry.kind === "raw") continue;
+          n += 1;
+          entry.outline = prefix ? `${prefix}.${n}` : String(n);
+          number(entry.children, entry.outline);
+        }
+      };
+      roots.forEach((entry) => entry.kind !== "raw" && summarize(entry));
+      number(roots, "");
+      return roots;
+    }
+
+    function planNodeState(node) {
+      return node.kind === "phase" ? node.state : node.task.state;
+    }
+
+    function planNodeClosed(node) {
+      return node.kind !== "raw" && ["done", "cancelled"].includes(planNodeState(node)) && !node.agg.open;
+    }
+
+    // 默认展开含进行中任务的那条路径; 整个计划没有进行中任务时, 展开顶层还有未完成项的阶段。
+    function planNodeExpanded(node, anyInProgress, depth) {
+      if (planState.showAll) return true;
+      if (planState.expanded.has(node.id)) return planState.expanded.get(node.id);
+      if (anyInProgress) return node.agg.in_progress > 0;
+      return depth === 0 && node.agg.open > 0;
+    }
+
+    function planTaskActions(task) {
+      const acts = [];
+      if (task.state === "pending") acts.push(["start", "开始"]);
+      if (task.state === "pending" || task.state === "in_progress") acts.push(["block", "阻塞"]);
+      if (["blocked", "done", "cancelled"].includes(task.state)) acts.push(["reopen", "重开"]);
+      if (["pending", "in_progress", "blocked"].includes(task.state)) {
+        acts.push(["edit", "改标题"], ["cancel", "取消"]);
+      }
+      acts.push(["note", "记一笔"]);
+      return acts;
+    }
+
+    function planTaskDetailHtml(task) {
+      const rows = PLAN_META_FIELDS.map(([key, label]) => {
+        const values = (Array.isArray(task[key]) ? task[key] : [task[key]]).filter(Boolean);
+        if (!values.length) return "";
+        return `<dt>${label}</dt><dd>${values.map((value) => renderInlineMarkdown(String(value))).join("<br>")}</dd>`;
+      }).join("");
+      const id = escapeHtml(task.id || "");
+      return `
+        <div class="plan-row-detail">
+          <dl class="plan-meta"><dt>状态</dt><dd>${PLAN_STATE_LABELS[task.state] || escapeHtml(task.state || "?")} · ${id}</dd>${rows}</dl>
+          <div class="plan-task-actions">
+            ${planTaskActions(task).map(([act, label]) => `<button type="button" data-plan-act="${act}" data-plan-task="${id}">${label}</button>`).join("")}
+          </div>
+        </div>`;
+    }
+
+    const PLAN_NOTE_STYLES = { fail: ["✗", "失败"], learn: ["💡", "心得"], progress: ["·", "进展"] };
+
+    // 任务下方的笔记徽标 (✗ 失败 / 💡 心得 / · 进展 条数), 点开看内容; 数据来自计划日志, 不在计划文件里。
+    function planNotesBadgesHtml(id) {
+      const notes = planState.data?.notes_by_task?.[id] || [];
+      if (!notes.length) return "";
+      const counts = {};
+      notes.forEach((note) => { counts[note.kind] = (counts[note.kind] || 0) + 1; });
+      const open = planState.openNotes.has(id);
+      return `<button type="button" class="plan-note-badges" data-plan-notes="${escapeHtml(id)}" aria-expanded="${open}" title="最近 ${notes.length} 条笔记（点开看）">${
+        Object.keys(PLAN_NOTE_STYLES).filter((kind) => counts[kind]).map((kind) => `<span class="k-${kind}">${PLAN_NOTE_STYLES[kind][0]} ${counts[kind]}</span>`).join("")
+      }</button>`;
+    }
+
+    function planNotesListHtml(id) {
+      const notes = planState.data?.notes_by_task?.[id] || [];
+      return `<div class="plan-notes">${notes.slice().reverse().map((note) => {
+        const [icon, label] = PLAN_NOTE_STYLES[note.kind] || ["·", note.kind];
+        return `<div class="plan-note k-${escapeHtml(note.kind)}"><span class="plan-note-head">${icon} ${escapeHtml(label)} · ${escapeHtml(String(note.date || "").slice(5))} ${escapeHtml(note.time || "")}</span> ${renderInlineMarkdown(note.text || "")}</div>`;
+      }).join("")}</div>`;
+    }
+
+    function planNodeHtml(node, ctx, depth) {
+      const isTask = node.kind === "task";
+      const stateName = planNodeState(node);
+      const stateKey = PLAN_STATE_ICONS[stateName] ? stateName : "pending";
+      const id = escapeHtml(node.id);
+      const hasChildren = node.children.length > 0;
+      const expanded = hasChildren && planNodeExpanded(node, ctx.anyInProgress, depth);
+      const detailOpen = isTask && planState.openTasks.has(node.id);
+      const title = isTask ? renderInlineMarkdown(node.task.title || "") : escapeHtml(node.name || `阶段 ${node.id}`);
+      const idLabel = isTask ? id : node.name ? `阶段 ${id}` : "";
+      const reason = isTask && stateKey === "blocked" && node.task.reason
+        ? `<span class="plan-row-reason">原因：${renderInlineMarkdown(node.task.reason)}</span>` : "";
+      const count = node.agg.total || node.agg.open ? `<span class="plan-row-count" title="子项完成数 / 总数（取消的不计）">${node.agg.done}/${node.agg.total}</span>` : "";
+      const twisty = hasChildren
+        ? `<button type="button" class="plan-twisty" data-plan-toggle="${id}" aria-expanded="${expanded}" aria-label="${expanded ? "折叠" : "展开"}">${expanded ? "▾" : "▸"}</button>`
+        : '<span class="plan-twisty"></span>';
+      const rowTip = isTask ? `${PLAN_STATE_LABELS[stateKey]} · 点开看依赖/验收/证据和操作` : `阶段汇总：${PLAN_STATE_LABELS[stateKey]} · 点一下展开/折叠`;
+      return `
+        <div class="plan-node ${isTask ? "is-task" : "is-phase"} st-${stateKey}" data-plan-node="${id}">
+          <div class="plan-row" data-plan-row="${id}"${isTask ? "" : ' data-plan-phase="1"'} role="button" tabindex="0" aria-expanded="${isTask ? detailOpen : expanded}" title="${escapeHtml(rowTip)}">
+            ${twisty}<span class="plan-outline">${escapeHtml(node.outline || "")}</span>
+            <span class="plan-icon" aria-label="${PLAN_STATE_LABELS[stateKey]}">${PLAN_STATE_ICONS[stateKey]}</span>
+            <span class="plan-row-main"><span class="plan-row-title">${title}</span>${idLabel ? `<span class="plan-row-id">${idLabel}</span>` : ""}${count}${isTask ? planNotesBadgesHtml(node.id) : ""}${reason}</span>
+          </div>
+          ${detailOpen ? planTaskDetailHtml(node.task) : ""}
+          ${isTask && planState.openNotes.has(node.id) ? planNotesListHtml(node.id) : ""}
+          ${expanded ? `<div class="plan-children">${planTreeLevelHtml(node.children, ctx, depth + 1)}</div>` : ""}
+        </div>`;
+    }
+
+    // 一层节点: 连续 ≥2 个已完成 (含取消, 且子树里没有未完成) 的节点默认折叠成一行。
+    function planTreeLevelHtml(entries, ctx, depth = 0) {
+      const out = [];
+      for (let i = 0; i < entries.length;) {
+        let j = i;
+        while (j < entries.length && planNodeClosed(entries[j])) j += 1;
+        const run = entries.slice(i, j);
+        if (run.length >= 2 && !planState.showAll) {
+          const key = run[0].id;
+          const range = `${run[0].outline}–${run.at(-1).outline}`;
+          if (planState.openRuns.has(key)) {
+            out.push(`<button type="button" class="plan-done-run" data-plan-run="${escapeHtml(key)}">收起已完成 ${run.length} 项（${escapeHtml(range)}）</button>`);
+            out.push(...run.map((node) => planNodeHtml(node, ctx, depth)));
+          } else {
+            const cancelled = run.filter((node) => planNodeState(node) === "cancelled").length;
+            out.push(`<button type="button" class="plan-done-run" data-plan-run="${escapeHtml(key)}">✅ 已完成 ${run.length} 项${cancelled ? `（含取消 ${cancelled}）` : ""} · ${escapeHtml(range)}（展开）</button>`);
+          }
+          i = j;
+          continue;
+        }
+        if (run.length) {
+          out.push(...run.map((node) => planNodeHtml(node, ctx, depth)));
+          i = j;
+          continue;
+        }
+        const entry = entries[i];
+        out.push(entry.kind === "raw"
+          ? `<div class="plan-raw-line${entry.checkbox ? " is-task" : ""}"${entry.checkbox ? ' title="这一行没有按任务格式解析出来，原样显示"' : ""}>${escapeHtml(entry.text)}</div>`
+          : planNodeHtml(entry, ctx, depth));
+        i += 1;
+      }
+      return out.join("");
+    }
+
+    function planProgress(tasks) {
+      const counted = (tasks || []).filter((task) => task.state !== "cancelled");
+      return { done: counted.filter((task) => task.state === "done").length, total: counted.length };
+    }
+
+    function planBlockerText(text) {
+      const value = String(text || "").trim();
+      return !value || /^(无|没有|none|n\/a|-|—)(\s|$|[；;，,。.:：])/i.test(value) ? "" : value;
+    }
+
+    function planSummaryHtml(data) {
+      const tasks = data.tasks || [];
+      const show = data.show || {};
+      const { done, total } = planProgress(tasks);
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      const current = tasks.find((task) => task.state === "in_progress") || show.current || null;
+      const next = show.next || null;
+      const blocker = planBlockerText(show.blocker);
+      const blocked = tasks.filter((task) => task.state === "blocked").length;
+      return `
+        <div class="plan-summary">
+          <div class="plan-progress" title="按 Active Work 统计，取消的任务不计入">
+            <div class="plan-progress-bar"><span style="width:${pct}%"></span></div>
+            <span class="plan-progress-text">完成 ${done}/${total}${blocked ? ` · 阻塞 ${blocked}` : ""}</span>
+          </div>
+          <div class="plan-summary-line"><span class="plan-summary-label">当前</span>
+            ${current ? `<span class="plan-summary-value is-current" data-plan-jump="${escapeHtml(current.id)}" title="${escapeHtml(`${current.id} ${current.title || ""}`)}">▶ ${escapeHtml(current.title || current.id)}</span>` : '<span class="plan-summary-value plan-muted">没有进行中的任务</span>'}
+          </div>
+          <div class="plan-summary-line"><span class="plan-summary-label">下一步</span>
+            <span class="plan-summary-value" title="${escapeHtml(next ? `${next.id} ${next.title || ""}` : show.next_hint || "")}">${escapeHtml(next ? next.title || next.id : show.next_hint || "无")}</span>
+          </div>
+          ${blocker ? `<div class="plan-summary-line is-blocker"><span class="plan-summary-label">阻塞</span><span class="plan-summary-value">${escapeHtml(blocker)}</span></div>` : ""}
+          <div class="plan-summary-actions">
+            <button type="button" data-plan-new>新任务</button>
+            <button type="button" data-plan-note>记一笔</button>
+            <label><input type="checkbox" data-plan-show-all${planState.showAll ? " checked" : ""}>显示全部</label>
+          </div>
+        </div>`;
+    }
+
+    function planSectionOpen(heading, fallback) {
+      return Object.prototype.hasOwnProperty.call(planState.sections, heading) ? planState.sections[heading] : fallback;
+    }
+
+    function planSectionHtml(heading, bodyHtml, defaultOpen) {
+      const open = planSectionOpen(heading, defaultOpen);
+      return `<details class="plan-doc-section" data-plan-section="${escapeHtml(heading)}"${open ? " open" : ""}>
+          <summary>${renderInlineMarkdown(heading)}</summary>
+          <div class="plan-section-body">${bodyHtml}</div>
+        </details>`;
+    }
+
+    function planMarkdownHtml(lines) {
+      const text = (lines || []).join("\n").trim();
+      return text ? `<div class="markdown plan-md">${renderMarkdown(text)}</div>` : "";
+    }
+
+    function planCoordinateHtml(lines, tasks) {
+      const byId = new Map((tasks || []).map((task) => [task.id, task]));
+      const cards = [];
+      const rest = [];
+      for (const line of lines) {
+        const match = PLAN_COORD_RE.exec(line);
+        if (!match) {
+          rest.push(line);
+          continue;
+        }
+        const key = match[1].toLowerCase();
+        const value = match[2];
+        const task = /task$/.test(key) ? byId.get(value.trim()) : null;
+        const shown = task ? `${renderInlineMarkdown(task.title || "")} <span class="plan-row-id">${escapeHtml(task.id)}</span>` : renderInlineMarkdown(value || "—");
+        cards.push(`<div class="plan-kv"><div class="plan-k">${PLAN_COORD_LABELS[key] || escapeHtml(match[1])}</div><div class="plan-v">${shown}</div></div>`);
+      }
+      return `${cards.length ? `<div class="plan-coord">${cards.join("")}</div>` : ""}${planMarkdownHtml(rest)}`;
+    }
+
+    function planDocumentHtml(data) {
+      const doc = parsePlanDocument(data.raw || "");
+      const tasks = data.tasks || [];
+      const parts = [planSummaryHtml(data)];
+      if (data.raw_truncated) parts.push('<div class="plan-warn">原文超过 200KB，只渲染了前 200KB</div>');
+      if (doc.title) parts.push(`<h3 class="plan-doc-title">${renderInlineMarkdown(doc.title)}</h3>`);
+      if (doc.stamp) parts.push(`<div class="plan-stamp">${renderInlineMarkdown(doc.stamp)}</div>`);
+      if (doc.doneCriteria) parts.push(`<div class="plan-done-criteria"><b>Done Criteria · 完成标准</b>${renderInlineMarkdown(doc.doneCriteria)}</div>`);
+      parts.push(planMarkdownHtml(doc.intro));
+      for (const section of doc.sections) {
+        const name = section.heading.trim();
+        if (/^Current Coordinate$/i.test(name)) {
+          parts.push(planSectionHtml(name, planCoordinateHtml(section.lines, tasks), true));
+        } else if (/^Active Work$/i.test(name)) {
+          const tree = buildPlanTaskTree(section.lines, tasks, planPhaseNames(doc));
+          const ctx = { anyInProgress: tasks.some((task) => task.state === "in_progress") };
+          parts.push(planSectionHtml(name, tree.length ? `<div class="plan-tree">${planTreeLevelHtml(tree, ctx, 0)}</div>` : '<div class="plan-muted">没有任务</div>', true));
+        } else {
+          parts.push(planSectionHtml(name, planMarkdownHtml(section.lines) || '<div class="plan-muted">（空）</div>', PLAN_OPEN_SECTIONS_RE.test(name)));
+        }
+      }
+      return parts.join("");
+    }
+
+    function planListHtml(items, limit) {
+      const rows = (items || []).filter(Boolean).slice(-limit);
+      return rows.length ? `<ul class="plan-list">${rows.map((row) => `<li>${escapeHtml(String(row).replace(/^-\s*/, ""))}</li>`).join("")}</ul>` : "";
+    }
+
+    function planActivityHtml(data) {
+      const show = data.show || {};
+      const g = data.git || {};
+      const unrecorded = show.unrecorded || {};
+      const unrecordedText = [
+        unrecorded.commits ? `未登记提交 ${unrecorded.commits}` : "",
+        unrecorded.files ? `未登记改动文件 ${unrecorded.files}` : "",
+      ].filter(Boolean).join(" · ");
+      const errors = (show.errors || []).map((e) => (typeof e === "string" ? e : `${e.code || ""} ${e.message || JSON.stringify(e)}`));
+      const gitBits = [
+        g.branch ? `分支 ${g.branch}` : "",
+        g.pending != null ? (g.pending ? `待归档 ${g.pending >= 999 ? "999+" : g.pending}（新 ${g.untracked ?? "?"} · 改 ${g.modified ?? "?"}）` : "无待归档") : "",
+        Number(g.ahead) > 0 ? `未推送 ${g.ahead}` : "",
+        g.last_commit_age != null ? `上次归档 ${formatAgeShort(g.last_commit_age)}` : "",
+      ].filter(Boolean);
+      return `
+        <div class="plan-section"><h4>最近动态（提交与笔记）</h4>${planListHtml(show.activity, 10) || '<div class="plan-muted">暂无</div>'}</div>
+        ${(show.notes || []).length ? `<div class="plan-section"><h4>任务笔记</h4>${planListHtml(show.notes, 6)}</div>` : ""}
+        <div class="plan-section"><h4>未记录改动</h4>${unrecordedText
+          ? `<div class="plan-warn">${escapeHtml(unrecordedText)}</div>${planListHtml(unrecorded.sample, 8)}`
+          : '<div class="plan-muted">没有</div>'}</div>
+        <div class="plan-section"><h4>Git</h4><div>${escapeHtml(gitBits.join(" · ") || "读取中")}</div></div>
+        ${errors.length ? `<div class="plan-section plan-warn"><h4>计划校验</h4>${planListHtml(errors, 6)}</div>` : ""}`;
+    }
+
+    function planTrackHtml(track) {
+      const button = `<div class="plan-section"><button type="button" data-plan-track-run>${track ? "重新分拣" : "开始分拣"}</button></div>`;
+      if (planState.trackLoading) return '<div class="plan-section plan-track plan-muted">分拣中…（大仓库要几秒）</div>';
+      if (!track) return button;
+      if (track.error) return `<div class="plan-section plan-track plan-warn">分拣失败：${escapeHtml(track.error)}</div>${button}`;
+      const c = track.counts || {};
+      const structure = track.structure || null;
+      const loose = structure?.root_loose;
+      const noReadme = structure?.dirs_without_readme;
+      return `
+        <div class="plan-section plan-track"><h4>分拣${track.cached ? `（${Math.round(track.age_s || 0)} 秒前的结果）` : ""}</h4>
+          <div class="plan-counts">
+            <span>该提交 ${Number(c.commit) || 0}</span><span>该忽略 ${Number(c.ignore) || 0}</span>
+            <span>需判断 ${Number(c.review) || 0}</span><span>已追踪但应忽略 ${Number(c.tracked_should_ignore) || 0}</span>
+          </div>
+          ${track.next_hint ? `<div>${escapeHtml(track.next_hint)}</div>` : ""}
+          ${track.note ? `<div class="plan-muted">${escapeHtml(track.note)}</div>` : ""}
+          ${loose?.count ? `<div class="plan-muted">根目录散落 ${loose.count}：${escapeHtml((loose.sample || []).join("、"))}</div>` : ""}
+          ${noReadme?.count ? `<div class="plan-muted">缺 README 的顶层目录 ${noReadme.count}：${escapeHtml((noReadme.dirs || []).join("、"))}</div>` : ""}
+        </div>${button}`;
+    }
+
+    function renderPlanSub() {
+      const data = planState.data;
+      if (!data) return;
+      const g = data.git || {};
+      const bits = [data.plan_rel || "", g.branch || ""];
+      if (g.pending != null) bits.push(g.pending ? `待归档 ${g.pending >= 999 ? "999+" : g.pending}` : "无待归档");
+      const age = g.last_commit_age != null ? formatAgeShort(g.last_commit_age) : "";
+      if (age) bits.push(`上次归档 ${age}`);
+      el("planTitle").textContent = `计划 · ${data.project || ""} · #${data.window_index ?? ""}`;
+      el("planSub").textContent = bits.filter(Boolean).join(" · ");
+    }
+
+    function renderPlan() {
+      const data = planState.data;
+      const body = el("planBody");
+      el("planTabs").querySelectorAll("[data-plan-tab]").forEach((tab) => {
+        tab.setAttribute("aria-selected", tab.dataset.planTab === planState.tab ? "true" : "false");
+      });
+      if (planState.tab === "track") {
+        body.innerHTML = planTrackHtml(planState.track);
+        return;
+      }
+      if (!data) {
+        body.innerHTML = `<div class="plan-muted">${planState.loading ? "读取中…" : "没有数据"}</div>`;
+        return;
+      }
+      renderPlanSub();
+      const scrollTop = body.scrollTop;
+      if (planState.tab === "raw") {
+        body.innerHTML = `${data.raw_truncated ? '<div class="plan-warn">原文超过 200KB，只显示前 200KB</div>' : ""}<pre class="plan-raw">${escapeHtml(data.raw || "")}</pre>`;
+      } else if (planState.tab === "activity") {
+        body.innerHTML = planActivityHtml(data);
+      } else {
+        body.innerHTML = planDocumentHtml(data);
+      }
+      body.scrollTop = scrollTop;
+      if (planState.tab === "plan" && planState.needScroll) {
+        planState.needScroll = false;
+        body.querySelector(".plan-node.is-task.st-in_progress > .plan-row")?.scrollIntoView({ block: "center" });
+      }
+    }
+
+    function setPlanTab(tab) {
+      planState.tab = tab;
+      if (tab === "plan") planState.needScroll = true;
+      el("planBody").scrollTop = 0;
+      renderPlan();
+      if (tab === "track" && !planState.track && !planState.trackLoading) loadPlanTrack();
+    }
+
+    async function loadPlan(options = {}) {
+      const pane = planState.pane;
+      if (!pane || planState.loading) return;
+      planState.loading = true;
+      const known = !options.force && planState.data?.mtime_ns ? planState.data : null;
+      const since = known ? `&if_mtime=${encodeURIComponent(known.mtime_ns)}&if_notes=${encodeURIComponent(known.notes_mtime_ns || "")}` : "";
+      try {
+        const res = await fetch(`${BASE}/api/plan?pane=${encodeURIComponent(pane)}${since}`, { cache: "no-store" });
+        const data = await res.json();
+        if (planState.pane !== pane) return;
+        if (!res.ok || data.error) throw new Error(data.error || res.status);
+        if (data.unchanged && planState.data) {
+          planState.data.git = data.git;  // 计划文件没变: 只更新头部的 Git 数字, 不重渲染
+          renderPlanSub();
+          return;
+        }
+        planState.data = data;
+        renderPlan();
+      } catch (error) {
+        if (planState.pane !== pane) return;
+        if (!planState.data) el("planBody").innerHTML = `<div class="plan-warn">读取计划失败：${escapeHtml(error.message)}</div>`;
+        else showToast(`刷新计划失败：${error.message}`);
+      } finally {
+        planState.loading = false;
+      }
+    }
+
+    function openPlanPanel(paneId) {
+      if (!paneId) return;
+      if (planState.pane !== paneId) {
+        Object.assign(planState, {
+          data: null, track: null, tab: "plan", showAll: false, openTasks: new Set(), openRuns: new Set(),
+          openNotes: new Set(), expanded: new Map(), sections: {},
+        });
+      }
+      planState.pane = paneId;
+      planState.needScroll = planState.tab === "plan";
+      closePlanForm();
+      el("planBackdrop").hidden = false;
+      el("planPanel").hidden = false;
+      document.body.classList.add("plan-open");
+      const pane = state.panes.find((item) => item.pane_id === paneId);
+      el("planTitle").textContent = `计划 · ${pane ? paneDisplayName(pane) : paneId}`;
+      renderPlan();
+      loadPlan({ force: true });
+      clearInterval(planState.timer);
+      planState.timer = setInterval(() => {
+        if (!document.hidden) loadPlan();
+      }, PLAN_REFRESH_MS);
+    }
+
+    function closePlanPanel() {
+      clearInterval(planState.timer);
+      planState.timer = null;
+      planState.pane = "";
+      el("planBackdrop").hidden = true;
+      el("planPanel").hidden = true;
+      document.body.classList.remove("plan-open");
+      closePlanForm();
+    }
+
+    async function loadPlanTrack() {
+      const pane = planState.pane;
+      if (!pane || planState.trackLoading) return;
+      planState.trackLoading = true;
+      renderPlan();
+      try {
+        const res = await fetch(`${BASE}/api/plan/track?pane=${encodeURIComponent(pane)}`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || res.status);
+        planState.track = data;
+      } catch (error) {
+        planState.track = { error: error.message };
+      } finally {
+        planState.trackLoading = false;
+        if (planState.pane === pane) renderPlan();
+      }
+    }
+
+    function planTaskById(id) {
+      return (planState.data?.tasks || []).find((task) => task.id === id) || null;
+    }
+
+    function closePlanForm() {
+      const form = el("planForm");
+      form.hidden = true;
+      form.innerHTML = "";
+    }
+
+    // 简单表单: fields = [[name, label, {type, value, required, max, options}]]
+    function openPlanForm(title, action, fields, extra = {}) {
+      const form = el("planForm");
+      form.innerHTML = `
+        <div class="plan-strong">${escapeHtml(title)}</div>
+        ${fields.map(([name, label, opt = {}]) => {
+          const req = opt.required ? " required" : "";
+          const max = opt.max ? ` maxlength="${opt.max}"` : "";
+          const value = escapeHtml(opt.value || "");
+          let input;
+          if (opt.type === "textarea") input = `<textarea name="${name}"${req}${max}>${value}</textarea>`;
+          else if (opt.type === "select") input = `<select name="${name}">${opt.options.map(([v, l]) => `<option value="${escapeHtml(v)}"${v === opt.value ? " selected" : ""}>${escapeHtml(l)}</option>`).join("")}</select>`;
+          else input = `<input name="${name}" value="${value}"${req}${max} autocomplete="off">`;
+          return `<label>${escapeHtml(label)}${opt.required ? " *" : ""}${input}</label>`;
+        }).join("")}
+        <div class="plan-form-actions"><button type="button" data-plan-form-cancel>取消</button><button type="button" data-plan-form-submit>提交</button></div>`;
+      form.hidden = false;
+      form.querySelector("[data-plan-form-cancel]").addEventListener("click", closePlanForm);
+      form.querySelector("[data-plan-form-submit]").addEventListener("click", async (event) => {
+        const values = { ...extra };
+        for (const [name, label, opt = {}] of fields) {
+          const node = form.querySelector(`[name="${name}"]`);
+          const value = node.value.trim();
+          if (opt.required && !value) {
+            showToast(`${label}必填`);
+            node.focus();
+            return;
+          }
+          if (value) values[name] = value;
+        }
+        if (action === "cancel" && !confirm(`确定取消任务 ${values.id}？\n\n取消后任务保留在计划里，标为已取消，可以再重开。`)) return;
+        event.target.disabled = true;
+        const ok = await submitPlanAction({ action, ...values });
+        event.target.disabled = false;
+        if (ok) closePlanForm();
+      });
+      const first = form.querySelector("input, textarea");
+      if (first) first.focus();
+    }
+
+    async function submitPlanAction(body) {
+      const pane = planState.pane;
+      try {
+        const res = await fetch(`${BASE}/api/plan/action`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pane, ...body }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) {
+          showToast(data.error || `计划操作失败（${res.status}）`);
+          if (res.status === 409) await loadPlan({ force: true });
+          return false;
+        }
+        showToast("计划已更新");
+        await loadPlan({ force: true });
+        return true;
+      } catch (error) {
+        showToast(`计划操作失败：${error.message}`);
+        return false;
+      }
+    }
+
+    function planTaskAction(act, id) {
+      const task = planTaskById(id);
+      const name = task ? `${id} ${truncateDisplay(task.title, 40)}` : id;
+      if (act === "start") {
+        submitPlanAction({ action: "start", id });
+      } else if (act === "block") {
+        openPlanForm(`阻塞 ${name}`, "block", [["reason", "原因", { required: true, max: 300 }]], { id });
+      } else if (act === "cancel") {
+        openPlanForm(`取消 ${name}`, "cancel", [["reason", "原因", { required: true, max: 300 }]], { id });
+      } else if (act === "reopen") {
+        openPlanForm(`重开 ${name}`, "reopen", [["reason", "原因（记为任务笔记）", { required: true, max: 300 }]], { id });
+      } else if (act === "edit") {
+        openPlanForm(`改任务 ${id}`, "edit", [
+          ["title", "标题", { value: task?.title || "", max: 200 }],
+          ["gate", "追加验收", { max: 300 }],
+        ], { id });
+      } else if (act === "note") {
+        openPlanNoteForm(id);
+      }
+    }
+
+    function openPlanNoteForm(taskId = "") {
+      const tasks = (planState.data?.tasks || []).filter((t) => ["in_progress", "pending", "blocked"].includes(t.state));
+      const current = planState.data?.show?.current?.id || "";
+      openPlanForm("记一笔", "note", [
+        ["text", "内容", { type: "textarea", required: true, max: 300 }],
+        ["kind", "类型", { type: "select", value: "progress", options: Object.entries(PLAN_NOTE_KINDS) }],
+        ["id", "关联任务", {
+          type: "select",
+          value: taskId || current,
+          options: [["", "整个计划 / 当前任务"], ...tasks.map((t) => [t.id, `${t.id} ${truncateDisplay(t.title, 36)}`])],
+        }],
+      ]);
+    }
+
+    function openPlanNewTaskForm() {
+      openPlanForm("新任务", "add", [
+        ["id", "任务 ID", { required: true, value: planState.data?.suggested_id || "", max: 60 }],
+        ["title", "标题", { required: true, max: 200 }],
+        ["gate", "验收（怎么算做完）", { max: 300 }],
+        ["depends_on", "前置任务 ID（逗号分隔，可空）", { max: 300 }],
+      ]);
+    }
+
+    // ---- 归档: 标题栏按钮 + 结果回路 ------------------------------------------------------
+    // 服务端在 /api/panes 的 pane.archive 里给出 running / done(+result); 结果行点一下关闭
+    // (只在本机浏览器记住), 卡片上的"归档✓"在完成 1 小时后自动消失。
+    const ARCHIVE_BADGE_SECONDS = 3600;
+
+    function archiveDismissKey(pane) {
+      return pane?.archive?.sent_at != null ? `${pane.pane_id}@${pane.archive.sent_at}` : "";
+    }
+
+    function archiveDismissed(pane) {
+      const key = archiveDismissKey(pane);
+      if (!state.archiveDismissed) {
+        try {
+          state.archiveDismissed = JSON.parse(localStorage.getItem("tmuxCardArchiveDismissed") || "{}") || {};
+        } catch {
+          state.archiveDismissed = {};
+        }
+      }
+      return Boolean(key && state.archiveDismissed[key]);
+    }
+
+    function dismissArchiveResult(pane) {
+      const key = archiveDismissKey(pane);
+      if (!key) return;
+      const cutoff = Date.now() - 86400 * 1000;
+      const kept = Object.fromEntries(Object.entries(state.archiveDismissed || {}).filter(([, at]) => at > cutoff));
+      state.archiveDismissed = { ...kept, [key]: Date.now() };
+      localStorage.setItem("tmuxCardArchiveDismissed", JSON.stringify(state.archiveDismissed));
+      renderDetailPlanTools();
+    }
+
+    function archiveResultText(archive) {
+      const result = archive?.result || {};
+      if (result.error) return `归档结果读取失败：${result.error}`;
+      if (result.no_git) return `归档结束，但项目还没有 Git 仓库${result.plan_changed ? "（计划已更新）" : ""}，去窗口看 AI 的回复`;
+      if (!Number(result.new_commits)) return "归档结束但没有新提交，去窗口看 AI 的回复";
+      const bits = [];
+      if (archive.base_pending != null && result.pending != null) bits.push(`待归档 ${archive.base_pending}→${result.pending}`);
+      if (result.git_created) bits.push("已新建 Git 仓库");
+      bits.push(`新增 ${result.new_commits} 个提交`);
+      if (result.plan_changed) bits.push("计划已更新");
+      return `归档完成：${bits.join("，")}`;
+    }
+
+    // 卡片 Git 行里的小标记: 归档中 / 归档✓ (完成后 1 小时内)。
+    function cardArchiveBadgeHtml(pane) {
+      const archive = pane?.archive;
+      if (!archive) return "";
+      if (archive.state === "running") return '<span class="cg-archive-run" title="已发送归档指令，等窗口空闲后统计结果">归档中</span>';
+      if (archive.state !== "done" || !(Number(archive.age_s) < ARCHIVE_BADGE_SECONDS)) return "";
+      const failed = Boolean(archive.result?.error);
+      return `<span class="cg-archive-done${failed ? " is-error" : ""}" title="${escapeHtml(archiveResultText(archive))}">${failed ? "归档?" : "归档✓"}</span>`;
+    }
+
+    // 详情标题栏右侧 (窄屏在"⋯"菜单里): 待归档 N · 未推送 M、归档状态、计划/归档按钮。
+    function detailPlanToolsHtml(pane) {
+      if (!pane) return "";
+      const g = pane.git || {};
+      const count = (value) => {
+        const n = Number(value);
+        return value != null && Number.isFinite(n) && n > 0 ? n : 0;
+      };
+      const gitParts = [];
+      if (g.state === "ok") {
+        const pending = count(g.modified) + count(g.untracked);
+        if (pending) {
+          const level = gitPendingLevel(pending, g.last_commit_age);
+          const cls = level === "red" ? " cg-alert" : level === "amber" ? " cg-amber" : "";
+          gitParts.push(`<span class="dpt-pending${cls}" title="新文件 ${count(g.untracked)} · 改动 ${count(g.modified)}">待归档 ${pending >= 999 ? "999+" : pending}</span>`);
+        }
+        if (count(g.ahead)) gitParts.push(`<span class="dpt-ahead cg-warn">未推送 ${count(g.ahead)}</span>`);
+      } else if (!pane.git && pane.has_git === false) {
+        gitParts.push('<span class="dpt-nogit" title="还不是 Git 仓库（归档时 AI 可以建仓）">未建仓</span>');
+      }
+      const id = escapeHtml(pane.pane_id);
+      const archive = pane.archive;
+      let status = "";
+      if (archive?.state === "running") {
+        status = '<span class="dpt-archive-running" title="等窗口回到空闲、且发送满 30 秒后统计结果">归档中…</span>';
+      } else if (archive?.state === "done" && !archiveDismissed(pane)) {
+        const text = archiveResultText(archive);
+        const cls = archive.result?.error ? " is-error" : Number(archive.result?.new_commits) ? "" : " is-empty";
+        status = `<button type="button" class="dpt-archive-result${cls}" data-archive-dismiss="${id}" title="${escapeHtml(text)}（点一下关闭）">${escapeHtml(text)} ×</button>`;
+      }
+      // 三个按钮始终都在; 不能用时置灰 (is-disabled, 不用 disabled 属性: 点了要能提示原因)。
+      const blocker = archive?.state === "running" ? "归档进行中，等结果出来再发" : paneArchiveBlocker(pane);
+      const planReason = panePlanReason(pane);
+      const terminalOpen = Boolean(state.terminalOpen && state.selected === pane.pane_id);
+      const disabled = (reason) => (reason ? ' is-disabled" aria-disabled="true' : "");
+      const buttons = [
+        `<button type="button" class="dpt-plan${disabled(planReason)}" data-detail-plan="${id}" title="${escapeHtml(planReason || "查看和编辑这个项目的任务计划")}">计划</button>`,
+        `<button type="button" class="dpt-archive${disabled(blocker)}" data-detail-archive="${id}" title="${escapeHtml(blocker || "让窗口里的 AI 整理文件、提交 Git、更新计划")}">归档</button>`,
+        `<button type="button" class="dpt-terminal${terminalOpen ? " active" : ""}" data-detail-terminal="${id}" title="${terminalOpen ? "回到对话视图" : "在这里显示这个窗口的 tmux 画面"}" aria-pressed="${terminalOpen ? "true" : "false"}">${terminalOpen ? "对话" : "终端"}</button>`,
+      ].join("");
+      return `${gitParts.length ? `<span class="dpt-git">${gitParts.join('<span aria-hidden="true">·</span>')}</span>` : ""}${status}${buttons}`;
+    }
+
+    function renderDetailPlanTools() {
+      const pane = state.sharedFilesOpen ? null : state.panes.find((item) => item.pane_id === state.selected);
+      const html = detailPlanToolsHtml(pane);
+      // 右下角 ⌁ 展开的 ESC 那一组 (手机端看计划的主入口): 选中了窗口就一直显示"计划"和"终端";
+      // 没有计划时"计划"变灰、点了提示, 不隐藏 (藏起来会让人以为功能没了)。
+      const hasPlan = panePlanAvailable(pane);
+      const floatPlan = el("floatPlan");
+      floatPlan.hidden = !pane;
+      floatPlan.classList.toggle("is-disabled", !hasPlan);
+      floatPlan.setAttribute("aria-disabled", String(!hasPlan));
+      floatPlan.title = hasPlan ? "打开这个窗口所在项目的计划" : panePlanReason(pane);
+      const floatTerminal = el("floatTerminal");
+      const terminalOpen = Boolean(pane && state.terminalOpen);
+      floatTerminal.hidden = !pane;
+      floatTerminal.textContent = terminalOpen ? "对话" : "终端";
+      floatTerminal.title = terminalOpen ? "回到对话视图" : "在这里显示这个窗口的 tmux 画面";
+      floatTerminal.classList.toggle("active", terminalOpen);
+      floatTerminal.setAttribute("aria-pressed", String(terminalOpen));
+      if (el("floatControl").classList.contains("open")) layoutFloatMenu();
+      if (html === state._detailPlanToolsHtml) return;
+      state._detailPlanToolsHtml = html;
+      el("detailPlanTools").innerHTML = html;
+      el("settingsPlanActions").innerHTML = html;
+    }
+
+    function handleDetailPlanToolsClick(event) {
+      const planButton = event.target.closest("[data-detail-plan]");
+      const archiveButton = event.target.closest("[data-detail-archive]");
+      const dismiss = event.target.closest("[data-archive-dismiss]");
+      const terminalButton = event.target.closest("[data-detail-terminal]");
+      if (terminalButton) toggleTerminalView(terminalButton.dataset.detailTerminal);
+      else if (planButton?.classList.contains("is-disabled")) showToast(planButton.title);
+      else if (planButton) openPlanPanel(planButton.dataset.detailPlan);
+      else if (archiveButton?.classList.contains("is-disabled")) showToast(archiveButton.title);
+      else if (archiveButton) requestArchive(archiveButton.dataset.detailArchive);
+      else if (dismiss) dismissArchiveResult(state.panes.find((item) => item.pane_id === dismiss.dataset.archiveDismiss));
+      else return;
+      el("settingsPanel").open = false;
+    }
+
+    // ---- 卡片内 tmux 视图: 配色 ----
+    // 和卡片深色主题 (Dracula 系: 背景 #282a36、正文 #f8f8f2、紫 #bd93f9) 协调的 16 色;
+    // 256 色 / 真彩色照常显示, 但前景和它的背景对比度不足 4.5 时往亮 (或暗) 调, 保证读得清。
+    const TERMINAL_BG = "#282a36";
+    const TERMINAL_FG = "#f8f8f2";
+    const TERMINAL_PALETTE = [
+      "#21222c", "#ff5555", "#50fa7b", "#f1fa8c", "#bd93f9", "#ff79c6", "#8be9fd", "#f8f8f2",
+      "#6272a4", "#ff6e6e", "#69ff94", "#ffffa5", "#d6acff", "#ff92df", "#a4ffff", "#ffffff",
+    ];
+    const TERMINAL_MIN_CONTRAST = 4.5;
+
+    function rgbHex(rgb) {
+      return `#${rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
+    }
+
+    function hexRgb(hex) {
+      const h = String(hex).replace("#", "");
+      return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    }
+
+    function ansi256Color(index) {
+      const n = Math.max(0, Math.min(255, Number(index) || 0));
+      if (n < 16) return TERMINAL_PALETTE[n];
+      if (n >= 232) {
+        const level = 8 + (n - 232) * 10;
+        return rgbHex([level, level, level]);
+      }
+      const cube = n - 16;
+      const levels = [0, 95, 135, 175, 215, 255];
+      return rgbHex([levels[Math.floor(cube / 36)], levels[Math.floor(cube / 6) % 6], levels[cube % 6]]);
+    }
+
+    function relativeLuminance(hex) {
+      const [r, g, b] = hexRgb(hex).map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    function contrastRatio(a, b) {
+      const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    }
+
+    const _readableColorCache = new Map();
+    // fg 在 bg 上对比度不足 4.5 时, 按 bg 的明暗往白 / 黑混 (保留原色相), 直到够为止。
+    function readableColor(fg, bg) {
+      const key = `${fg}|${bg}`;
+      if (_readableColorCache.has(key)) return _readableColorCache.get(key);
+      let out = fg;
+      if (contrastRatio(fg, bg) < TERMINAL_MIN_CONTRAST) {
+        const toward = relativeLuminance(bg) < 0.4 ? [255, 255, 255] : [0, 0, 0];
+        const base = hexRgb(fg);
+        for (let step = 1; step <= 10; step += 1) {
+          out = rgbHex(base.map((v, i) => v + (toward[i] - v) * step / 10));
+          if (contrastRatio(out, bg) >= TERMINAL_MIN_CONTRAST) break;
+        }
+      }
+      _readableColorCache.set(key, out);
+      return out;
+    }
+
+    // 一行带 SGR 的 tmux 输出 → HTML (tmux capture -e 每行开头会重申样式, 行间不带状态)。
+    // dim 用降低不透明度表示, 不把颜色压成看不清的深灰。
+    // 东亚宽字符 / emoji: tmux 里占 2 格
+    const WIDE_CHAR_RE = /[\u1100-\u115f\u2e80-\u303e\u3041-\u33ff\u3400-\u4dbf\u4e00-\u9fff\ua000-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6\u{1f300}-\u{1f64f}\u{1f900}-\u{1f9ff}\u{20000}-\u{3fffd}]/u;
+
+    // 逐格排版: 非 ASCII 字符放进固定 1ch / 2ch 宽的格子, 不受回退字体字宽影响 (很多等宽字体没有
+    // 框线字形, 回退到 CJK 字体后 "─" 有 1em 宽), 表格框线才能和 tmux 里一样对齐。同一个横线字符
+    // 连续 4 个以上合成一个 N ch 宽、超出裁掉的格子, 省掉成百个元素。
+    function terminalCells(escaped) {
+      return escaped.replace(/([─━═])\1{3,}|[^\x00-\x7f]/gu, (match) => {
+        const n = Array.from(match).length;
+        if (n > 1) return `<span class="cr" style="width:${n}ch">${match}</span>`;
+        return `<span class="${WIDE_CHAR_RE.test(match) ? "c2" : "c1"}">${match}</span>`;
+      });
+    }
+
+    function ansiToHtml(value, cells = false) {
+      const clean = String(value || "")
+        .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "")
+        .replace(/\r/g, "");
+      const blank = { fg: "", bg: "", bold: false, dim: false, italic: false, underline: false, inverse: false, strike: false, hidden: false };
+      const style = { ...blank };
+      const css = () => {
+        const fg = style.inverse ? (style.bg || TERMINAL_BG) : style.fg;
+        const bg = style.inverse ? (style.fg || TERMINAL_FG) : style.bg;
+        const rules = [];
+        if (fg || bg) rules.push(`color:${readableColor(fg || TERMINAL_FG, bg || TERMINAL_BG)}`);
+        if (bg) rules.push(`background-color:${bg}`);
+        if (style.bold) rules.push("font-weight:700");
+        if (style.dim) rules.push("opacity:.62");
+        if (style.italic) rules.push("font-style:italic");
+        const deco = [style.underline && "underline", style.strike && "line-through"].filter(Boolean);
+        if (deco.length) rules.push(`text-decoration:${deco.join(" ")}`);
+        if (style.hidden) rules.push("visibility:hidden");
+        return rules.join(";");
+      };
+      const safeText = (text) => escapeHtml(text
+        .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+        .replace(/\x1b[()][0-9A-Z]/g, "")
+        .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, ""));
+      const chunks = [];
+      const flush = (raw) => {
+        const escaped = safeText(raw);
+        if (!escaped) return;
+        const text = cells ? terminalCells(escaped) : escaped;
+        const rules = css();
+        chunks.push(rules ? `<span style="${rules}">${text}</span>` : text);
+      };
+      let offset = 0;
+      const sgr = /\x1b\[([0-9;:]*)m/g;
+      for (let match = sgr.exec(clean); match; match = sgr.exec(clean)) {
+        flush(clean.slice(offset, match.index));
+        const colonForm = match[1].includes("::");  // 38:2::r:g:b (empty colour-space id)
+        const codes = (match[1] || "0").replaceAll(":", ";").split(";").map((item) => Number(item || 0));
+        for (let i = 0; i < codes.length; i += 1) {
+          const code = codes[i];
+          if (code === 0) Object.assign(style, blank);
+          else if (code === 1) style.bold = true;
+          else if (code === 2) style.dim = true;
+          else if (code === 3) style.italic = true;
+          else if (code === 4) style.underline = true;
+          else if (code === 7) style.inverse = true;
+          else if (code === 8) style.hidden = true;
+          else if (code === 9) style.strike = true;
+          else if (code === 22) { style.bold = false; style.dim = false; }
+          else if (code === 23) style.italic = false;
+          else if (code === 24) style.underline = false;
+          else if (code === 27) style.inverse = false;
+          else if (code === 28) style.hidden = false;
+          else if (code === 29) style.strike = false;
+          else if (code === 39) style.fg = "";
+          else if (code === 49) style.bg = "";
+          else if (code >= 30 && code <= 37) style.fg = TERMINAL_PALETTE[code - 30];
+          else if (code >= 90 && code <= 97) style.fg = TERMINAL_PALETTE[code - 90 + 8];
+          else if (code === 40) style.bg = "";  // "黑底" 就是终端底色, 不画成更深的色块
+          else if (code >= 41 && code <= 47) style.bg = TERMINAL_PALETTE[code - 40];
+          else if (code >= 100 && code <= 107) style.bg = TERMINAL_PALETTE[code - 100 + 8];
+          else if ((code === 38 || code === 48) && codes[i + 1] === 5 && Number.isFinite(codes[i + 2])) {
+            style[code === 38 ? "fg" : "bg"] = code === 48 && [0, 16].includes(codes[i + 2]) ? "" : ansi256Color(codes[i + 2]);
+            i += 2;
+          } else if ((code === 38 || code === 48) && codes[i + 1] === 2) {
+            const skip = colonForm ? 1 : 0;
+            const rgb = codes.slice(i + 2 + skip, i + 5 + skip);
+            if (rgb.length === 3 && rgb.every(Number.isFinite)) style[code === 38 ? "fg" : "bg"] = rgbHex(rgb);
+            i += 4 + skip;
+          }
+        }
+        offset = sgr.lastIndex;
+      }
+      flush(clean.slice(offset));
+      return chunks.join("");
+    }
+
+    function terminalPageState(paneId) {
+      return state.terminalPagesByPane.get(paneId) || null;
+    }
+
+    // ---- 卡片内 tmux 视图: 行拼接 ----
+    // 抓屏用 join=1 (tmux -J 把软换行拼回整行, 前端再按容器宽度重排), 返回的是"逻辑行", 行数和
+    // tmux 的物理行号对不上 —— 新旧内容一律按内容找重合处再拼: 取新段里第一个"首行非空"的 6 行
+    // 锚点, 在已有内容里从后往前找; 对不上就只保留新取的这段, 宁可少不重复。新段 / 更早一段的
+    // 第一行可能是被切开的半行, 拼接时总是用另一边的完整行。
+    const TERMINAL_TAIL_EXTRA = 150;
+    const TERMINAL_ALIGN_ROWS = 6;
+    const TERMINAL_OLDER_SLACK = 40;
+
+    function terminalPlainRow(row) {
+      return String(row || "").replace(/\x1b\[[0-9;:]*[A-Za-z]/g, "");
+    }
+
+    function terminalRowsMatch(rows, at, anchor) {
+      if (at < 0 || at + anchor.length > rows.length) return false;
+      for (let i = 0; i < anchor.length; i += 1) if (rows[at + i] !== anchor[i]) return false;
+      return true;
+    }
+
+    // lines 里 (跳过可能是半行的第 0 行) 第一个首行非空的锚点: { offset, anchor } 或 null。
+    function terminalAnchor(lines, maxOffset = 80) {
+      for (let k = 1; k <= Math.min(maxOffset, lines.length - 1); k += 1) {
+        if (terminalPlainRow(lines[k]).trim()) return { offset: k, anchor: lines.slice(k, k + TERMINAL_ALIGN_ROWS) };
+      }
+      return null;
+    }
+
+    // anchor 在 rows 里最后一次完整出现的位置 (新内容总是接在末尾附近), 没有返回 -1。
+    function terminalLastMatch(rows, anchor) {
+      for (let at = rows.length - anchor.length; at >= 0; at -= 1) {
+        if (terminalRowsMatch(rows, at, anchor)) return at;
+      }
+      return -1;
+    }
+
+    function terminalPageFromData(data, lines = data.lines || [], firstLine = Number(data.first_line || 0)) {
+      return {
+        lines,
+        firstLine,
+        endLine: Number(data.end_line || 0),
+        totalLines: Number(data.total_lines || 0),
+        width: Number(data.width || 0),
+        height: Number(data.height || 0),
+        historySize: Number(data.history_size || 0),
+        historyLimit: Number(data.history_limit || 0),
+        alternateOn: Boolean(data.alternate_on),
+        latestHash: String(data.hash || ""),
+        capturedAt: data.captured_at || "",
+      };
+    }
+
+    // 新取的最新一段 (data) 接到已有页 (current) 后面: { page, mode },
+    // mode = "fresh" | "aligned" | "covered" (新段已包含整页) | "replaced" (对不上, 只留新段)。
+    function mergeTerminalTail(current, data) {
+      const incoming = Array.isArray(data.lines) ? data.lines : [];
+      if (!current) return { page: terminalPageFromData(data), mode: "fresh" };
+      const shrunk = Number(data.total_lines || 0) < current.totalLines;  // clear-history 等
+      const found = shrunk ? null : terminalAnchor(incoming);
+      const at = found ? terminalLastMatch(current.lines, found.anchor) : -1;
+      if (at < 0) return { page: terminalPageFromData(data), mode: "replaced" };
+      const cut = at - found.offset + 1;  // incoming[1] 对应 current[cut]; incoming[0] 用 current[cut-1]
+      if (cut <= 0) return { page: terminalPageFromData(data), mode: "covered" };
+      const lines = current.lines.slice(0, cut).concat(incoming.slice(1));
+      return { page: { ...terminalPageFromData(data, lines, current.firstLine), noOlder: current.noOlder }, mode: "aligned" };
+    }
+
+    // 往上翻时取到的更早一段 (data, 故意多取 TERMINAL_OLDER_SLACK 行和页首重合) 接到页前面。
+    function prependTerminalOlder(current, data) {
+      const older = Array.isArray(data.lines) ? data.lines : [];
+      const found = terminalAnchor(current.lines);
+      if (!found) return { ...current, lines: older.concat(current.lines), firstLine: Number(data.first_line || 0) };
+      const at = terminalLastMatch(older, found.anchor);
+      // 页首已经不在 tmux 历史里 (写满后被丢掉): 更早的也取不到了。
+      if (at < 0) return { ...current, noOlder: true };
+      const cut = at - found.offset;  // older[cut] 是 current[0] 的完整版本
+      return {
+        ...current,
+        lines: older.slice(0, Math.max(0, cut + 1)).concat(current.lines.slice(1)),
+        firstLine: Number(data.first_line || 0),
+      };
+    }
+
+    // ---- 卡片内 tmux 视图: tmux 顶部之上接对话记录 ----
+    // Claude 全屏模式画在 alternate screen 里, tmux 没有 scrollback (history_size=0); Codex 的
+    // scrollback 也有上限。翻到 tmux 内容顶部后, 继续用对话视图同一个数据源 /api/history_before
+    // (Claude JSONL / Codex rollout) 往上接, 渲染成终端风格。和实时画面的衔接: 第一页里只取
+    // "实时画面里还找不到"的更早消息 (按消息首行查找), 找不到就全显示 —— 宁可边界重复一条, 不漏。
+    const TERMINAL_SEAM = "\u0000seam";
+    const TERMINAL_TX = "\u0001";  // 行首标记: 这一行来自对话记录 (transcript), 不是 tmux 画面
+    const TERMINAL_HISTORY_PAGE = 40;
+    const ESC = String.fromCharCode(27);
+
+    function terminalCleanText(text) {
+      return String(text || "").replace(/\r/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "").replace(/\s+$/, "");
+    }
+
+    function terminalOneLine(text, limit = 140) {
+      const flat = String(text || "").replace(/\s+/g, " ").trim();
+      return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat;
+    }
+
+    // 一条对话记录 → 终端风格的行 (带 SGR, 走同一套 ansiToHtml 配色):
+    // 用户 "›" 紫色前缀, AI 回复 "⏺" 绿色前缀, 工具调用一行淡色摘要, 工具结果不展开。
+    function transcriptBlockLines(block) {
+      const role = String(block?.role || "");
+      const label = String(block?.label || "");
+      const text = terminalCleanText(block?.text);
+      if (!text) return [];
+      const lines = text.split("\n");
+      const indent = (rest) => rest.map((line) => (line ? `  ${line}` : ""));
+      if (role === "user") {
+        return [`${ESC}[38;2;189;147;249m›${ESC}[39m ${lines[0]}`, ...indent(lines.slice(1)), ""];
+      }
+      if (role === "assistant") {
+        return [`${ESC}[38;2;80;250;123m⏺${ESC}[39m ${lines[0]}`, ...indent(lines.slice(1)), ""];
+      }
+      if (role === "tool") {
+        if (/result/i.test(label)) return [];
+        const detail = terminalOneLine(lines.slice(1).join(" "));
+        return [`${ESC}[2m  ⎿ ${terminalOneLine(lines[0], 60)}${detail ? ` · ${detail}` : ""}${ESC}[22m`];
+      }
+      return [`${ESC}[2m  · ${terminalOneLine(lines[0])}${ESC}[22m`];
+    }
+
+    // 查重用的"指纹": 首行去掉 markdown 标记和空白, 取前 24 个字; 太短 (<8) 不拿来查重。
+    function transcriptMatchKey(block) {
+      const role = String(block?.role || "");
+      if (role !== "user" && role !== "assistant") return "";
+      const first = terminalCleanText(block.text).split("\n").find((line) => line.trim()) || "";
+      const key = first.replace(/[*_`#>\[\]()|~-]/g, "").replace(/\s+/g, "").slice(0, 24);
+      return key.length >= 8 ? key : "";
+    }
+
+    function terminalHaystack(lines) {
+      return (lines || []).map(terminalPlainRow).join("\n").replace(/[*_`#>\[\]()|~-]/g, "").replace(/\s+/g, "");
+    }
+
+    // 第一页 (对话末尾) 里比实时画面更早的部分: 从旧到新找第一条在画面里出现的消息, 取它之前的。
+    function transcriptOlderThanScreen(blocks, screenLines) {
+      const hay = terminalHaystack(screenLines);
+      const firstOnScreen = blocks.findIndex((block) => {
+        const key = transcriptMatchKey(block);
+        return key && hay.includes(key);
+      });
+      return firstOnScreen < 0 ? blocks : blocks.slice(0, firstOnScreen);
+    }
+
+    // 往上翻到 tmux 内容顶部后, 更早的内容从哪来。
+    function terminalOlderSource(page, pane) {
+      if (!page) return "none";
+      if (page.firstLine > 0 && !page.noOlder) return "tmux";
+      return pane && (pane.kind === "Claude" || pane.kind === "Codex") ? "transcript" : "none";
+    }
+
+    function terminalTranscriptState(paneId) {
+      let st = state.terminalTranscriptByPane.get(paneId);
+      if (!st) {
+        st = { cursor: null, hasMore: true, loading: false, started: false, lines: [], transcriptId: "" };
+        state.terminalTranscriptByPane.set(paneId, st);
+      }
+      return st;
+    }
+
+    // 取一页更早的对话记录接到终端视图顶部; 返回新增了几行。
+    async function loadTerminalTranscriptOlder(paneId) {
+      const st = terminalTranscriptState(paneId);
+      if (st.loading || !st.hasMore) return 0;
+      st.loading = true;
+      try {
+        for (let guard = 0; guard < 8; guard += 1) {
+          const params = new URLSearchParams({ pane: paneId, count: String(TERMINAL_HISTORY_PAGE) });
+          if (st.cursor !== null) params.set("cursor", String(st.cursor));
+          const res = await fetch(`${BASE}/api/history_before?${params.toString()}`, { cache: "no-store" });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+          if (st.transcriptId && data.transcript_id && data.transcript_id !== st.transcriptId) {
+            // 这个窗口换了会话: 旧的衔接作废, 从新会话的末尾重新来
+            Object.assign(st, { cursor: null, hasMore: true, started: false, lines: [], transcriptId: data.transcript_id });
+            continue;
+          }
+          st.transcriptId = data.transcript_id || st.transcriptId;
+          const blocks = Array.isArray(data.blocks) ? data.blocks : [];
+          st.cursor = data.next_cursor ?? null;
+          st.hasMore = Boolean(data.has_more);
+          const page = terminalPageState(paneId);
+          const older = st.started ? blocks : transcriptOlderThanScreen(blocks, page?.lines || []);
+          st.started = true;
+          const lines = older.flatMap(transcriptBlockLines);
+          if (lines.length || !st.hasMore) {
+            st.lines = lines.concat(st.lines);
+            return lines.length;
+          }
+          // 这一页全在实时画面里 (或全是工具结果): 自动再往前取一页
+        }
+        return 0;
+      } finally {
+        st.loading = false;
+      }
+    }
+
+    // 视图模式全局记忆: 切到"对话"后所有窗口都是对话, 切到"终端"后都是终端, 下次打开网页也一样。
+    // 存本机 localStorage (手机和电脑各记各的), 不走服务端 prefs。
+    const VIEW_MODE_KEY = "tmuxCardViewMode";
+
+    function terminalPreferred() {
+      return localStorage.getItem(VIEW_MODE_KEY) === "terminal";
+    }
+
+    function rememberTerminalPreference(_paneId, open) {
+      localStorage.setItem(VIEW_MODE_KEY, open ? "terminal" : "dialog");
+    }
+
+    // ---- 卡片内 tmux 视图: 显示 ----
+    const TERMINAL_RULE_RE = /^[\s─━═│┃┄┅┆┇┈┉┊┋╌╍╎╏╭╮╯╰┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬▔▁\-_=~]+$/;
+
+    // 只由框线 / 分隔符和空格组成 (至少 3 个) 的行: 不换行, 按容器宽度截断成一条线。
+    function terminalLineKind(line) {
+      if (line === TERMINAL_SEAM) return "seam";
+      if (line.startsWith(TERMINAL_TX)) return "text";
+      const plain = terminalPlainRow(line);
+      if (!plain.trim()) return "blank";
+      if (TERMINAL_RULE_RE.test(plain) && plain.replace(/\s/g, "").length >= 3) return "rule";
+      return "text";
+    }
+
+    // 要显示的行: 屏幕区 (最后 height 行) 里连续的空行最多留 1 行, 末尾空行最多 1 行; 全空返回 []。
+    // Claude 在 361 列的宽窗口里常把一行分成左右两栏 (左边正文, 右边另一块内容 / 行号 / 框线, 中间
+    // 一大段空格)。按窄屏重排时那段空格会折成好几行空白, 右栏又被接在正文后面。重排前把这种行在
+    // >= 20 个连续空格处拆成几行 (右边那段带上它之前的样式), 只剩框线的右段直接丢掉。
+    const TERMINAL_COLUMN_GAP = 20;
+    const TERMINAL_RULE_ONLY_RE = /^[\s─━═│┃┄┅┆┇┈┉┊┋╌╍╎╏╭╮╯╰┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬▔▁]*$/;
+    const _columnSplitCache = new Map();
+
+    function splitTerminalColumns(line) {
+      if (_columnSplitCache.has(line)) return _columnSplitCache.get(line);
+      const tokens = String(line).match(/\x1b\[[0-9;:]*m|[\s\S]/gu) || [];
+      const parts = [];
+      let current = "";
+      let styles = "";   // 到目前为止出现过的 SGR, 拆出的右段从这里接上样式
+      let gap = "";      // 还没决定去留的一段空格 (夹在中间的 SGR 一起暂存)
+      let gapSpaces = 0;
+      for (const token of tokens) {
+        if (token.startsWith("\x1b")) {
+          styles += token;
+          if (gapSpaces) gap += token;
+          else current += token;
+          continue;
+        }
+        if (token === " ") {
+          gap += token;
+          gapSpaces += 1;
+          continue;
+        }
+        if (gapSpaces >= TERMINAL_COLUMN_GAP && terminalPlainRow(current).trim()) {
+          parts.push(current);
+          current = styles;
+        } else {
+          current += gap;
+        }
+        gap = "";
+        gapSpaces = 0;
+        current += token;
+      }
+      parts.push(current);
+      const out = parts.filter((part, index) => index === 0 || !TERMINAL_RULE_ONLY_RE.test(terminalPlainRow(part)));
+      if (_columnSplitCache.size > 6000) _columnSplitCache.clear();
+      _columnSplitCache.set(line, out);
+      return out;
+    }
+
+    // 行里有没有设背景色 (SGR 40-47 / 100-107 / 48;…)。
+    function terminalHasBackground(line) {
+      const sgr = /\x1b\[([0-9;:]*)m/g;
+      for (let match = sgr.exec(line); match; match = sgr.exec(line)) {
+        const codes = match[1].replaceAll(":", ";").split(";").map((item) => Number(item || 0));
+        for (let i = 0; i < codes.length; i += 1) {
+          const code = codes[i];
+          if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107) || code === 48) return true;
+          if (code === 38) i += codes[i + 1] === 5 ? 2 : 4;  // 跳过前景色的参数, 别把 38;5;48 当背景
+        }
+      }
+      return false;
+    }
+
+    // 要显示的行: 只由空白组成的行 (带不带背景色都算) 连续多行只留一行, 且不画背景色;
+    // 这组空白行原本带背景色 (Claude 拿它当分隔) 时显示成一条 1px 淡线 (TERMINAL_SEAM), 不画粗条。
+    // 全空返回 []。
+    function terminalDisplayLines(page) {
+      const out = [];
+      let run = null;  // { bg } 正在合并的一组空白行
+      const flush = () => {
+        if (run) out.push(run.bg ? TERMINAL_SEAM : "");
+        run = null;
+      };
+      for (const raw of page?.lines || []) {
+        const rawKind = terminalLineKind(raw);
+        // 框线行只留线本身 (去掉两侧空白、背景色和原色, 统一画成淡线)
+        const lines = rawKind === "text" ? splitTerminalColumns(raw) : [rawKind === "rule" ? terminalPlainRow(raw).trim() : raw];
+        for (const line of lines) {
+          if (terminalLineKind(line) === "blank") {
+            run = run || { bg: false };
+            run.bg = run.bg || terminalHasBackground(line);
+          } else {
+            flush();
+            out.push(line);
+          }
+        }
+      }
+      flush();
+      return out.some((line) => line !== TERMINAL_SEAM && terminalLineKind(line) !== "blank") ? out : [];
+    }
+
+    // 只替换变化的行: 公共前缀 + 公共后缀保留, 中间换掉 (新输出只动末尾几行, 往前加载只动开头)。
+    function terminalLineDiff(prev, next) {
+      let head = 0;
+      while (head < prev.length && head < next.length && prev[head] === next[head]) head += 1;
+      let tail = 0;
+      while (tail < prev.length - head && tail < next.length - head
+        && prev[prev.length - 1 - tail] === next[next.length - 1 - tail]) tail += 1;
+      return { head, remove: prev.length - head - tail, insert: next.slice(head, next.length - tail) };
+    }
+
+    function terminalLineNode(line, fit = false) {
+      const node = document.createElement("div");
+      if (line.startsWith(TERMINAL_TX)) {
+        // 往上接的对话记录: 来自 transcript, 按容器宽度自然换行
+        node.className = "tl tx";
+        node.innerHTML = ansiToHtml(line.slice(TERMINAL_TX.length));
+        return node;
+      }
+      const kind = terminalLineKind(line);
+      if (fit) {
+        // 窗口已按查看者尺寸排好: 逐行原样显示, 每个字符占 tmux 里那么宽
+        node.className = kind === "seam" ? "tl seam" : "tl";
+        if (kind !== "seam") node.innerHTML = ansiToHtml(line, true);
+        return node;
+      }
+      node.className = kind === "text" ? "tl" : `tl ${kind}`;
+      // 框线行只画线本身 (去掉背景色和原色, 统一淡色), 不然带背景的分隔在窄屏上是一条粗色块。
+      if (kind === "rule") node.textContent = terminalPlainRow(line).replace(/\s+$/, "");
+      else if (kind !== "seam" && kind !== "blank") node.innerHTML = ansiToHtml(line);
+      return node;
+    }
+
+    function patchTerminalLines(container, next, fit = false) {
+      if (!next.some((line) => line !== TERMINAL_SEAM && terminalLineKind(line) !== "blank")) {
+        container.innerHTML = '<div class="terminal-empty">（这个窗口暂时没有输出）</div>';
+        container._termLines = null;
+        return;
+      }
+      container.classList.toggle("fit", fit);
+      let prev = container._termLines;
+      if (!prev || container.childElementCount !== prev.length || container._termFit !== fit) {
+        container.textContent = "";
+        prev = [];
+      }
+      const diff = terminalLineDiff(prev, next);
+      for (let i = 0; i < diff.remove; i += 1) container.children[diff.head].remove();
+      const frag = document.createDocumentFragment();
+      diff.insert.forEach((line) => frag.appendChild(terminalLineNode(line, fit)));
+      container.insertBefore(frag, container.children[diff.head] || null);
+      container._termLines = next;
+      container._termFit = fit;
+    }
+
+    function showTerminalPlaceholder(text) {
+      const container = el("terminalText");
+      container.innerHTML = `<div class="terminal-empty">${escapeHtml(text)}</div>`;
+      container._termLines = null;
+    }
+
+    function renderTerminalPage(paneId) {
+      if (!state.terminalOpen || paneId !== state.selected) return;
+      const page = terminalPageState(paneId);
+      el("emptyState").style.display = "none";
+      const pane = state.panes.find((item) => item.pane_id === paneId);
+      if (pane && !state.traceOpen) {
+        // 标题栏平时由对话视图的读取 (loadCapture) 填写; 终端视图不走那条路, 自己填。
+        el("detailTitle").textContent = paneDisplayName(pane);
+        el("detailSubtitle").textContent = paneNumber(pane);
+      }
+      const transcript = state.terminalTranscriptByPane.get(paneId);
+      if (page) {
+        // 窗口宽度放得下 (已按查看者尺寸调过, 或本来就窄): 原样逐行显示; 放不下才重排兜底。
+        const fit = page.width > 0 && page.width <= terminalGrid().rawCols;
+        const live = fit ? (page.lines.some((line) => terminalLineKind(line) !== "blank") ? page.lines : []) : terminalDisplayLines(page);
+        const older = (transcript?.lines || []).map((line) => TERMINAL_TX + line);
+        patchTerminalLines(el("terminalText"), older.length ? older.concat(TERMINAL_SEAM, live) : live, fit);
+      }
+      const source = terminalOlderSource(page, pane);
+      const status = el("terminalOlderStatus");
+      if (state.terminalLoadingOlder) status.textContent = "正在加载更早的内容…";
+      else if (!page) status.textContent = "";
+      else if (source === "tmux" || (source === "transcript" && (!transcript || transcript.hasMore))) status.textContent = "↑ 往上滚动加载更早的内容";
+      else status.textContent = source === "transcript" ? "已到会话开头" : "已到最早";
+    }
+
+    // 内容还没撑满可视区 (比如 Claude 全屏窗口只有一屏) 时没有滚动事件可触发, 主动往上接一页。
+    function fillTerminalViewport(paneId) {
+      const wrap = document.querySelector(".timeline-wrap");
+      if (!wrap || !state.terminalOpen || paneId !== state.selected || state.terminalLoadingOlder) return;
+      if (wrap.scrollHeight > wrap.clientHeight + 4) return;
+      const pane = state.panes.find((item) => item.pane_id === paneId);
+      const page = terminalPageState(paneId);
+      const source = terminalOlderSource(page, pane);
+      if (source === "tmux" || (source === "transcript" && terminalTranscriptState(paneId).hasMore)) loadOlderTerminal(paneId);
+    }
+
+    function anchorTerminalBottom() {
+      const wrap = document.querySelector(".timeline-wrap");
+      if (!wrap) return;
+      const bottom = wrap.scrollHeight - wrap.clientHeight;
+      if (Math.abs(wrap.scrollTop - bottom) > 1) wrap.scrollTop = bottom;
+    }
+
+    // 回到最新: 恢复跟随并滚到底 (双击终端空白处或按 End; 手动滚回底部也会恢复跟随)。
+    function jumpTerminalToLatest() {
+      if (!state.terminalOpen || !state.selected) return;
+      state.terminalFollowLatest = true;
+      anchorTerminalBottom();
+      kickTerminalPoll();
+    }
+
+    // ---- 卡片内 tmux 视图: 刷新节奏 (只拉当前打开的那一个窗口) ----
+    // AI 在处理、或最近 3 秒内容有变化: 0.3 秒; 连续 10 次没变 (空闲): 1 秒; 页面隐藏: 5 秒;
+    // 发送消息 / 按键后立刻拉一次并回到 0.3 秒。没变时服务端按 if_hash 不回内容, 前端不重绘。
+    const TERMINAL_POLL_FAST_MS = 300;
+    const TERMINAL_POLL_IDLE_MS = 1000;
+    const TERMINAL_POLL_HIDDEN_MS = 5000;
+    const TERMINAL_IDLE_AFTER_UNCHANGED = 10;
+
+    function terminalPollDelay(info) {
+      if (info.hidden) return TERMINAL_POLL_HIDDEN_MS;
+      if (info.busy || info.sinceChangeMs < 3000 || info.unchangedPolls < TERMINAL_IDLE_AFTER_UNCHANGED) return TERMINAL_POLL_FAST_MS;
+      return TERMINAL_POLL_IDLE_MS;
+    }
+
+    function scheduleTerminalPoll(delay) {
+      clearTimeout(state.terminalPollTimer);
+      state.terminalPollTimer = 0;
+      if (!state.terminalOpen) return;
+      state.terminalPollTimer = setTimeout(terminalPollTick, delay);
+    }
+
+    async function terminalPollTick() {
+      state.terminalPollTimer = 0;
+      const paneId = state.selected;
+      if (!state.terminalOpen || !paneId || state.sharedFilesOpen) return;
+      try {
+        await loadTerminalLatest(paneId, false);
+      } catch (_) {
+        // loadTerminalLatest 已把错误写进终端状态行; 下一拍继续试
+      } finally {
+        if (state.terminalOpen && !state.terminalPollTimer) {
+          const pane = state.panes.find((item) => item.pane_id === state.selected);
+          scheduleTerminalPoll(terminalPollDelay({
+            hidden: document.hidden,
+            busy: paneIsProcessing(pane) || Boolean(state.thinkingSince[state.selected]),
+            sinceChangeMs: Date.now() - (state.terminalLastChangeAt || 0),
+            unchangedPolls: state.terminalUnchangedPolls,
+          }));
+        }
+      }
+    }
+
+    function kickTerminalPoll() {
+      if (!state.terminalOpen) return;
+      state.terminalUnchangedPolls = 0;
+      state.terminalLastChangeAt = Date.now();
+      scheduleTerminalPoll(0);
+    }
+
+    // ---- 卡片内 tmux 视图: 让窗口跟随查看者尺寸 (像真正的 tmux 客户端) ----
+    // 量出容器能放几列几行 (隐藏的量尺元素和终端同字体), 请服务端把这个窗口调成这么大;
+    // Claude / Codex 会按这个宽度重新排版, 前端就可以原样逐行显示。真终端客户端正在看这个窗口时
+    // 服务端不调 (尊重真终端), 前端退回重排显示。防抖 500ms, 变化 < 2 列/行不重发。
+    const TERMINAL_COLS = [40, 250];
+    const TERMINAL_ROWS = [12, 120];
+    // Claude Code 全屏界面在 >=110 列时会在右侧开代码改动侧栏 (diff panel), 把画面分成两栏;
+    // Claude 窗口最多给 109 列, 侧栏就开不出来 (服务端 terminal_resize 同样夹紧)。
+    const CLAUDE_MAX_COLS = 109;
+
+    function terminalGrid() {
+      const container = el("terminalText");
+      let probe = state.terminalProbe;
+      if (!probe || !probe.isConnected) {
+        probe = document.createElement("span");
+        probe.className = "terminal-lines terminal-probe";
+        probe.setAttribute("aria-hidden", "true");
+        probe.textContent = "0".repeat(100);
+        el("terminalPanel").appendChild(probe);
+        state.terminalProbe = probe;
+      }
+      const charWidth = probe.getBoundingClientRect().width / 100 || 8;
+      const style = getComputedStyle(container);
+      const lineHeight = parseFloat(style.lineHeight) || 19;
+      const inner = container.clientWidth - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0);
+      const wrap = document.querySelector(".timeline-wrap");
+      const usableHeight = (wrap?.clientHeight || 0) - (el("terminalOlderStatus")?.offsetHeight || 0)
+        - parseFloat(style.paddingTop || 0) - parseFloat(style.paddingBottom || 0) - 4;
+      const rawCols = Math.floor(inner / charWidth);
+      const rawRows = Math.floor(usableHeight / lineHeight);
+      const clamp = (value, [lo, hi]) => Math.max(lo, Math.min(hi, value));
+      let cols = clamp(rawCols, TERMINAL_COLS);
+      if (selectedPane()?.kind === "Claude") cols = Math.min(cols, CLAUDE_MAX_COLS);
+      return { cols, rows: clamp(rawRows, TERMINAL_ROWS), rawCols, rawRows, charWidth, lineHeight };
+    }
+
+    // 该不该发 resize: 已经是这个尺寸 (差 < 2) 或刚为同一尺寸发过 (1 分钟内) 就不发。
+    function terminalResizeNeeded(page, grid, last, now = Date.now()) {
+      if (!grid || grid.rawCols < TERMINAL_COLS[0] || grid.rawRows < TERMINAL_ROWS[0] / 2) return false;
+      if (page && Math.abs(page.width - grid.cols) < 2 && Math.abs(page.height - grid.rows) < 2) return false;
+      if (last && Math.abs(last.cols - grid.cols) < 2 && Math.abs(last.rows - grid.rows) < 2 && now - last.at < 60_000) return false;
+      return true;
+    }
+
+    function scheduleTerminalResize(paneId = state.selected) {
+      clearTimeout(state.terminalResizeTimer);
+      state.terminalResizeTimer = setTimeout(() => sendTerminalResize(paneId), 500);
+    }
+
+    async function sendTerminalResize(paneId) {
+      if (!state.terminalOpen || document.hidden || !paneId || paneId !== state.selected) return;
+      const grid = terminalGrid();
+      const last = state.terminalResizeSent.get(paneId);
+      if (!terminalResizeNeeded(terminalPageState(paneId), grid, last)) return;
+      state.terminalResizeSent.set(paneId, { cols: grid.cols, rows: grid.rows, at: Date.now() });
+      try {
+        const res = await fetch(`${BASE}/api/terminal/resize`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pane: paneId, cols: grid.cols, rows: grid.rows }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) throw new Error(data.error || res.status);
+        if (data.resized) kickTerminalPoll();
+        else console.info("[cards-terminal] 没有调整窗口尺寸，退回重排显示：", data.reason || "", data.clients || "");
+      } catch (error) {
+        console.info("[cards-terminal] 调整窗口尺寸失败，退回重排显示：", error.message);
+      }
+    }
+
+    async function fetchTerminalCapture(paneId, params, signal) {
+      const query = new URLSearchParams({ pane: paneId, join: "1", ...params });
+      const res = await fetch(`${BASE}/api/terminal/capture?${query.toString()}`, { cache: "no-store", signal });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
+    }
+
+    // 首次读最新 TERMINAL_PAGE_LINES 行; 之后轮询只取"屏幕 + TERMINAL_TAIL_EXTRA 行", 用
+    // mergeTerminalTail 接到已有内容后面 (内容没变时服务端按 if_hash 只回 unchanged)。
+    async function loadTerminalLatest(paneId, forceBottom = false) {
+      if (!state.terminalOpen || paneId !== state.selected || state.terminalLoadingOlder) return;
+      const current = terminalPageState(paneId);
+      const params = current
+        ? { lines: String(Math.max(40, current.height) + TERMINAL_TAIL_EXTRA), if_hash: current.tailHash || "" }
+        : { lines: String(TERMINAL_PAGE_LINES) };
+      const requestSeq = ++state.terminalCaptureSeq;
+      state.terminalAbortController?.abort();
+      const controller = new AbortController();
+      state.terminalAbortController = controller;
+      try {
+        const data = await fetchTerminalCapture(paneId, params, controller.signal);
+        if (requestSeq !== state.terminalCaptureSeq || paneId !== state.selected || !state.terminalOpen) return;
+        const followLatest = forceBottom || state.terminalFollowLatest;  // 读完再判断: 用户可能刚往上翻
+        if (data.unchanged) {
+          // 内容没变: 不重绘、不动滚动位置 (只有显式要求到底时才校正一次)。
+          state.terminalUnchangedPolls += 1;
+          if (forceBottom) anchorTerminalBottom();
+          return;
+        }
+        state.terminalUnchangedPolls = 0;
+        state.terminalLastChangeAt = Date.now();
+        // 窗口尺寸变了 (刚按查看者尺寸调过): 画面整体重排, 按新内容从头显示, 不拼接
+        const resized = current && Number(data.width || 0) !== current.width;
+        const { page, mode } = resized ? { page: terminalPageFromData(data), mode: "fresh" } : mergeTerminalTail(current, data);
+        page.tailHash = String(data.hash || "");
+        state.terminalPagesByPane.set(paneId, page);
+        if (mode === "replaced" && current && !followLatest) showToast("终端输出太快，更早的内容已收起；往上滚会重新加载");
+        if (forceBottom) state.terminalFollowLatest = true;
+        renderTerminalPage(paneId);
+        // 跟随时直接把 scrollTop 设到底 (不做动画、不连环 rAF); 没在跟随就一动不动。
+        if (followLatest) anchorTerminalBottom();
+        fillTerminalViewport(paneId);
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        if (state.terminalOpen && paneId === state.selected) {
+          el("terminalOlderStatus").textContent = `tmux 读取失败：${error.message}`;
+        }
+        throw error;
+      } finally {
+        if (state.terminalAbortController === controller) state.terminalAbortController = null;
+      }
+    }
+
+    // 往上翻到顶: 先用完 tmux 的 scrollback, 再接对话记录, 直到会话开头; 加载前后阅读位置不跳。
+    async function loadOlderTerminal(paneId) {
+      const current = terminalPageState(paneId);
+      if (!state.terminalOpen || paneId !== state.selected || !current || state.terminalLoadingOlder) return;
+      const pane = state.panes.find((item) => item.pane_id === paneId);
+      const source = terminalOlderSource(current, pane);
+      if (source === "none") return;
+      if (source === "transcript" && !terminalTranscriptState(paneId).hasMore) return;
+      state.terminalLoadingOlder = true;
+      state.terminalFollowLatest = false;
+      renderTerminalPage(paneId);
+      const wrap = document.querySelector(".timeline-wrap");
+      const previousHeight = wrap.scrollHeight;
+      try {
+        if (source === "tmux") {
+          // 多取 TERMINAL_OLDER_SLACK 行和页首重合, 按内容去重 (历史写满后行号会漂)。
+          const before = Math.min(current.totalLines || current.firstLine, current.firstLine + TERMINAL_OLDER_SLACK);
+          const data = await fetchTerminalCapture(paneId, { lines: String(TERMINAL_PAGE_LINES), before: String(before) });
+          const latest = terminalPageState(paneId);
+          if (!state.terminalOpen || paneId !== state.selected || !latest || latest.firstLine !== current.firstLine) return;
+          state.terminalPagesByPane.set(paneId, prependTerminalOlder(latest, data));
+        } else {
+          await loadTerminalTranscriptOlder(paneId);
+          if (!state.terminalOpen || paneId !== state.selected) return;
+        }
+        state.terminalLoadingOlder = false;
+        renderTerminalPage(paneId);
+        wrap.scrollTop += wrap.scrollHeight - previousHeight;
+      } catch (error) {
+        if (state.terminalOpen && paneId === state.selected) {
+          el("terminalOlderStatus").textContent = `更早的内容加载失败：${error.message}`;
+        }
+      } finally {
+        state.terminalLoadingOlder = false;
+        if (state.terminalOpen && paneId === state.selected) {
+          const before = wrap.scrollHeight;
+          renderTerminalPage(paneId);
+          wrap.scrollTop += wrap.scrollHeight - before;
+          setTimeout(() => fillTerminalViewport(paneId), 0);
+        }
+      }
+    }
+
+    // 切到某个窗口时按它自己记住的选择显示对话或终端 (不发请求; 刷新循环会取数)。
+    function syncTerminalModeForPane(paneId) {
+      const open = terminalPreferred(paneId);
+      if (open === state.terminalOpen) return;
+      state.terminalOpen = open;
+      state.terminalFollowLatest = true;
+      if (open) state.rawVisible = false;
+      else {
+        state.terminalAbortController?.abort();
+        state.terminalCaptureSeq += 1;
+        requestBottomScroll(paneId);
+      }
+      applyTerminalMode();
+      renderDetailPlanTools();
+    }
+
+    async function setTerminalOpen(open, paneId = state.selected) {
+      const pane = state.panes.find((item) => item.pane_id === paneId);
+      if (open && !pane) {
+        showToast("窗口不存在或已关闭");
+        return;
+      }
+      if (open && state.traceOpen) setTraceOpen(false);
+      if (open && state.sharedFilesOpen) setSharedFilesOpen(false);
+      state.terminalOpen = Boolean(open);
+      rememberTerminalPreference(paneId, state.terminalOpen);
+      state.terminalUnchangedPolls = 0;
+      state.terminalLastChangeAt = Date.now();
+      state.rawVisible = false;
+      state.terminalFollowLatest = true;
+      applyRawMode();
+      applyTerminalMode();
+      renderDetailPlanTools();
+      el("settingsPanel").open = false;
+      if (!state.terminalOpen) {
+        state.terminalAbortController?.abort();
+        state.terminalCaptureSeq += 1;
+        // 切回对话停在最新一条: 挂一个"到底"请求, 即使这次读取被刷新循环的读取顶替也会生效。
+        requestBottomScroll(paneId);
+        if (state.selected) await loadCapture(state.selected, true);
+        return;
+      }
+      state.terminalPagesByPane.delete(paneId);  // 重新打开时从最新开始读
+      showTerminalPlaceholder("正在读取 tmux…");
+      renderTerminalPage(paneId);
+      await loadTerminalLatest(paneId, true);
+      scheduleTerminalPoll(TERMINAL_POLL_FAST_MS);
+      scheduleTerminalResize(paneId);
+    }
+
+    // "打开完整终端页" (⋯ 菜单, 只在服务端配置了 TMUX_CARD_TERMINAL_URL 时显示): 让网页终端
+    // (如 ttyd) 切到这个窗口再跳过去。网页终端直接 attach 共享会话时, 会切换挂在该会话上的
+    // 所有客户端的当前窗口 (接口返回里有列表)。
+    async function openFullTerminalPage(paneId = state.selected) {
+      const pane = state.panes.find((item) => item.pane_id === paneId);
+      if (!pane) {
+        showToast("窗口不存在或已关闭");
+        return;
+      }
+      try {
+        const res = await fetch(`${BASE}/api/terminal/focus`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pane: pane.pane_id, pane_pid: pane.pane_pid, pane_start_time: pane.pane_start_time }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) throw new Error(data.error || res.status);
+        saveDraft();
+        persistDraftsNow();
+        window.location.assign(FULL_TERMINAL_URL);
+      } catch (error) {
+        showToast(`没能打开完整终端页：${error.message}`);
+      }
+    }
+
+    // "终端": 只替换卡片详情的中央内容区。左侧卡片、顶部动作和原输入框都留在原位；
+    // 输入仍由既有 /api/send 精确投递到当前 pane，不切共享 tmux 会话也不跳离卡片页。
+    async function toggleTerminalView(paneId) {
+      try {
+        await setTerminalOpen(!state.terminalOpen, paneId);
+      } catch (error) {
+        showToast(`tmux 读取失败：${error.message}`);
+      }
+    }
+
+    async function requestArchive(paneId) {
+      const pane = state.panes.find((item) => item.pane_id === paneId);
+      if (!pane) {
+        showToast("窗口不存在或已关闭");
+        return;
+      }
+      if (!confirm(`将向 ${paneNumber(pane)} 发送归档指令，由窗口里的 AI 整理文件、提交 Git、更新计划。\n\n只在窗口空闲时发送。继续？`)) return;
+      try {
+        const res = await fetch(`${BASE}/api/archive-request`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pane: pane.pane_id, pane_pid: pane.pane_pid, pane_start_time: pane.pane_start_time }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) throw new Error(data.error || res.status);
+        showToast("已发送，窗口开始归档");
+        if (data.archive_run) pane.archive = data.archive_run;  // 立刻显示"归档中…", 下一轮 /api/panes 接管
+        state._lastCardsSig = "";
+        renderCards();
+        renderDetailPlanTools();
+        state.lastPaneRefreshAt = 0;
+      } catch (error) {
+        showToast(`归档没有发出：${error.message}`);
+      }
+    }
+
+    function toggleSetMember(set, value) {
+      if (set.has(value)) set.delete(value);
+      else set.add(value);
+    }
+
+    // 摘要条里点当前任务: 展开到它所在的路径, 滚过去。
+    function jumpToPlanTask(id) {
+      for (let cut = id.lastIndexOf("."); cut > 0; cut = id.lastIndexOf(".", cut - 1)) {
+        planState.expanded.set(id.slice(0, cut), true);
+      }
+      renderPlan();
+      el("planBody").querySelector(`[data-plan-node="${CSS.escape(id)}"] > .plan-row`)?.scrollIntoView({ block: "center" });
+    }
+
+    function handlePlanBodyClick(event) {
+      const hit = (selector) => event.target.closest(selector);
+      let node;
+      if ((node = hit("[data-plan-act]"))) {
+        planTaskAction(node.dataset.planAct, node.dataset.planTask);
+      } else if (hit("[data-plan-new]")) {
+        openPlanNewTaskForm();
+      } else if (hit("[data-plan-note]")) {
+        openPlanNoteForm();
+      } else if (hit("[data-plan-track-run]")) {
+        loadPlanTrack();
+      } else if ((node = hit("[data-plan-run]"))) {
+        toggleSetMember(planState.openRuns, node.dataset.planRun);
+        renderPlan();
+      } else if ((node = hit("[data-plan-notes]"))) {
+        toggleSetMember(planState.openNotes, node.dataset.planNotes);
+        renderPlan();
+      } else if ((node = hit("[data-plan-toggle]"))) {
+        planState.expanded.set(node.dataset.planToggle, node.getAttribute("aria-expanded") !== "true");
+        renderPlan();
+      } else if ((node = hit("[data-plan-jump]"))) {
+        jumpToPlanTask(node.dataset.planJump);
+      } else if (hit("a, button, input, label, select, textarea, summary")) {
+        return;
+      } else if ((node = hit("[data-plan-row]"))) {
+        const id = node.dataset.planRow;
+        if (node.dataset.planPhase) planState.expanded.set(id, node.getAttribute("aria-expanded") !== "true");
+        else toggleSetMember(planState.openTasks, id);
+        renderPlan();
+      }
+    }
+
     function renderCards() {
       const cards = el("cards");
       const panes = filteredPanes();
@@ -8236,6 +11166,7 @@
         p.pane_id === state.selected, paneIsProcessing(p), p.job?.id || "", p.job?.status || "",
         paneFavorite(p),  // 收藏态变化必须触发卡片重建, 否则星标不更新
         traceOverviewForPane(p)?.signature || "",
+        cardGitHtml(p),  // 分钟级年龄文本 → 最多每分钟重建一次; 也含可点的 ▶ 任务与归档标记
       ]));
       const active = document.activeElement;
       const userTyping = active && cards.contains(active) &&
@@ -8262,6 +11193,7 @@
           </div>
           <div class="preview">${jobPill(pane.job, pane)}${!pane.job?.status && (paneIsActivelyThinking(pane) || paneAwaitsReply(pane)) ? `<span class="card-thinking"><span class="card-thinking-dot"></span>${subagentsBusyLabel(pane) || (paneHasStartedResponse(pane) ? "处理中·已有阶段回复" : paneAwaitsReply(pane) ? "等待回复" : "处理中")}</span>` : ""}${pane.background && !paneIsRunning(pane) ? `<span class="card-background" title="回复已完成；后台监控仍在运行，有新事件时 AI 会被唤醒">已回复·${escapeHtml(pane.background)}</span>` : ""}${escapeHtml(pane.preview || "暂无最近输出")}</div>
           ${traceOverviewHtml(pane)}
+          ${cardGitHtml(pane)}
         </article>
       `).join("");
       cards.querySelectorAll(".card").forEach((card) => {
@@ -8321,6 +11253,12 @@
           event.stopPropagation();  // 别触发卡片选中/打开
           const pane = state.panes.find((item) => item.pane_id === btn.dataset.fav);
           if (pane) toggleFavorite(pane);
+        });
+      });
+      cards.querySelectorAll("[data-card-plan]").forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          openPlanPanel(btn.dataset.cardPlan);
         });
       });
       cards.querySelectorAll("[data-card-close]").forEach((btn) => {
@@ -8529,13 +11467,30 @@
       state.selected = paneId;
       if (state.sharedFilesOpen) setSharedFilesOpen(false);
       requestBottomScroll(state.selected);
-      state.rawVisible = false;
       loadDraft(state.selected);
       state.draftPaneLoaded = state.selected;
+      syncTerminalModeForPane(paneId);
       if (state.traceOpen) selectTracePane(pane);
       updateLastPromptButton();
+      renderDetailPlanTools();
       if (isMobileLayout()) setMobileDrawer(false);
       clearCaptureLoading();
+      if (state.terminalOpen) {
+        state.terminalFollowLatest = true;
+        if (!terminalPageState(paneId)) showTerminalPlaceholder("正在读取 tmux…");
+        renderTerminalPage(paneId);
+        updateSelectedHighlight();
+        scheduleTerminalResize(paneId);
+        try {
+          await loadTerminalLatest(paneId, true);
+          if (state.selected === paneId) renderCards();
+        } catch (error) {
+          if (state.selected === paneId && state.terminalOpen) {
+            el("terminalOlderStatus").textContent = `tmux 读取失败：${error.message}`;
+          }
+        }
+        return;
+      }
       state.currentBlocks = mergeOptimisticUserPrompts(paneId, []);
       startCaptureLoading(pane);
       // A prompt sent before switching back to this pane remains useful and
@@ -8888,10 +11843,13 @@
       }
       el("settingsSummary").textContent = "⋯";
       updateLastPromptButton();
+      renderDetailPlanTools();
       renderMeta(pane);
       updateHistoryLoadIndicator();
 
       const wrap = document.querySelector(".timeline-wrap");
+      const rawWasNearBottom = state.rawVisible &&
+        wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 80;
       const previousHash = state.lastRawByPane.get(paneId);
       const explicitLoading = state.captureLoadingPane === paneId ||
         Boolean(el("timeline")?.querySelector(".swipe-loading"));
@@ -9071,7 +12029,9 @@
       if (blocksChanged && document.hidden && !scrollTop) {
         maybeNotify(`${pane.project} 有新输出`, `${pane.target} · ${formatClock(changedAt)}`);
       }
-      if (scrollTop || shouldInitialScroll) {
+      const rawShouldFollow = state.rawVisible &&
+        (firstPaneRender || (changed && rawWasNearBottom));
+      if (scrollTop || shouldInitialScroll || rawShouldFollow) {
         // 显式切换 pane 或首次加载 → 强制到底部
         scrollToBottom();
         clearBottomScrollRequest(paneId);
@@ -9328,6 +12288,7 @@
         renderTimelinePreservingScroll();
         showToast(`${key} 已发送`);
         state.fastUntil = Date.now() + 6000;
+        kickTerminalPoll();
         state.lastPaneRefreshAt = 0;
         scheduleRefresh(80);
       } catch (error) {
@@ -9484,38 +12445,85 @@
       }
     }
 
+    const FLOAT_SIZE = 42;
+    const FLOAT_MARGIN = 8;
+    const FLOAT_MENU_GAP = 8;
+    const FLOAT_DRAG_THRESHOLD = 8;
+
+    // 把 ⌁ 圆的左上角夹回视口内 (拖动结束、旋转屏幕、改变窗口大小后都调用)。
+    function clampFloatPos(pos, viewport) {
+      const maxX = Math.max(FLOAT_MARGIN, viewport.width - FLOAT_SIZE - FLOAT_MARGIN);
+      const maxY = Math.max(FLOAT_MARGIN, viewport.height - FLOAT_SIZE - FLOAT_MARGIN);
+      return {
+        x: Math.round(Math.min(maxX, Math.max(FLOAT_MARGIN, Number(pos.x) || 0))),
+        y: Math.round(Math.min(maxY, Math.max(FLOAT_MARGIN, Number(pos.y) || 0))),
+      };
+    }
+
+    // 展开的那一组放哪: 默认圆的左侧横排, 宽度不超过左侧可用空间 (放不下就换行,
+    // 圆在下半屏往上换行、上半屏往下换行); 左侧连一颗按钮都放不下才放到右侧。
+    function floatMenuLayout(circle, viewport) {
+      const minWidth = FLOAT_SIZE + 14;  // one button + menu padding/border
+      const leftSpace = circle.left - FLOAT_MENU_GAP - FLOAT_MARGIN;
+      const rightSpace = viewport.width - circle.right - FLOAT_MENU_GAP - FLOAT_MARGIN;
+      const side = leftSpace >= minWidth || leftSpace >= rightSpace ? "left" : "right";
+      return {
+        side,
+        maxWidth: Math.max(minWidth, Math.floor(side === "left" ? leftSpace : rightSpace)),
+        wrapUp: circle.top + circle.height / 2 > viewport.height / 2,
+      };
+    }
+
+    function layoutFloatMenu() {
+      const menu = el("floatMenu");
+      const layout = floatMenuLayout(el("floatControl").getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight });
+      menu.classList.toggle("open-right", layout.side === "right");
+      menu.classList.toggle("wrap-up", layout.wrapUp);
+      menu.style.maxWidth = `${layout.maxWidth}px`;
+    }
+
     function applyFloatPos() {
       const control = el("floatControl");
       if (!state.floatPos) return;
+      state.floatPos = clampFloatPos(state.floatPos, { width: window.innerWidth, height: window.innerHeight });
       control.style.left = `${state.floatPos.x}px`;
       control.style.top = `${state.floatPos.y}px`;
       control.style.right = "auto";
       control.style.bottom = "auto";
     }
 
+    // 轻点 (移动不到 FLOAT_DRAG_THRESHOLD 像素) 只算点击, 圆一动不动; 超过才开始拖。
     function startFloatDrag(event) {
       const control = el("floatControl");
       const rect = control.getBoundingClientRect();
-      const offsetX = event.clientX - rect.left;
-      const offsetY = event.clientY - rect.top;
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const offsetX = startX - rect.left;
+      const offsetY = startY - rect.top;
       let moved = false;
       const move = (moveEvent) => {
+        if (!moved && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < FLOAT_DRAG_THRESHOLD) return;
         moved = true;
-        const x = Math.max(8, Math.min(window.innerWidth - rect.width - 8, moveEvent.clientX - offsetX));
-        const y = Math.max(8, Math.min(window.innerHeight - rect.height - 8, moveEvent.clientY - offsetY));
-        state.floatPos = { x: Math.round(x), y: Math.round(y) };
+        state.floatPos = { x: moveEvent.clientX - offsetX, y: moveEvent.clientY - offsetY };
         applyFloatPos();
+        layoutFloatMenu();
       };
       const up = () => {
-        localStorage.setItem("tmuxCardFloatPos", JSON.stringify(state.floatPos));
-        state.floatDragging = moved;
-        setTimeout(() => { state.floatDragging = false; }, 0);
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        if (moved) {
+          applyFloatPos();
+          localStorage.setItem("tmuxCardFloatPos", JSON.stringify(state.floatPos));
+          layoutFloatMenu();
+        }
+        state.floatDragging = moved;
+        setTimeout(() => { state.floatDragging = false; }, 0);
         scheduleMobileControlCollisionCheck();
       };
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
     }
 
     function applyMobileDrawerTogglePos() {
@@ -9671,6 +12679,75 @@
       if (state.selected) await loadCapture(state.selected, false);
     });
     el("closePane").addEventListener("click", () => requestClosePane());
+    el("planClose").addEventListener("click", closePlanPanel);
+    el("planBackdrop").addEventListener("click", closePlanPanel);
+    el("planRefresh").addEventListener("click", () => (planState.tab === "track" ? loadPlanTrack() : loadPlan({ force: true })));
+    el("planTabs").addEventListener("click", (event) => {
+      const tab = event.target.closest("[data-plan-tab]");
+      if (tab) setPlanTab(tab.dataset.planTab);
+    });
+    el("planBody").addEventListener("click", handlePlanBodyClick);
+    el("planBody").addEventListener("change", (event) => {
+      if (!event.target.matches("[data-plan-show-all]")) return;
+      planState.showAll = event.target.checked;
+      renderPlan();
+    });
+    el("planBody").addEventListener("keydown", (event) => {
+      if ((event.key === "Enter" || event.key === " ") && event.target.matches("[data-plan-row]")) {
+        event.preventDefault();
+        event.target.click();
+      }
+    });
+    // <details> 的 toggle 不冒泡: 捕获阶段记住用户对每个 ## 段的展开/折叠, 15 秒刷新时保留。
+    el("planBody").addEventListener("toggle", (event) => {
+      const section = event.target;
+      if (section.matches?.("[data-plan-section]")) planState.sections[section.dataset.planSection] = section.open;
+    }, true);
+    el("detailPlanTools").addEventListener("click", handleDetailPlanToolsClick);
+    el("settingsPlanActions").addEventListener("click", handleDetailPlanToolsClick);
+    el("floatPlan").addEventListener("click", () => {
+      if (!state.selected) return;
+      const pane = state.panes.find((item) => item.pane_id === state.selected);
+      if (!panePlanAvailable(pane)) {
+        showToast(panePlanReason(pane));
+        return;
+      }
+      openPlanPanel(state.selected);
+    });
+    el("floatTerminal").addEventListener("click", () => {
+      if (state.selected) toggleTerminalView(state.selected);
+    });
+    el("openFullTerminal").hidden = !FULL_TERMINAL_URL;
+    el("openFullTerminal").addEventListener("click", () => {
+      el("settingsPanel").open = false;
+      openFullTerminalPage(state.selected);
+    });
+    // 跳到最新: 双击终端空白处 (双击文字是选词, 不跳) 或按 End (输入框里的 End 照常移光标)。
+    // 可用区域变了 (窗口大小、手机键盘、输入框展开、侧栏拖动): 重新判断是否原样显示, 并按新尺寸调窗口。
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => {
+        if (!state.terminalOpen || !state.selected) return;
+        renderTerminalPage(state.selected);
+        scheduleTerminalResize(state.selected);
+      }).observe(document.querySelector(".timeline-wrap"));
+    }
+    // 没有滚动条时往上滚轮不会产生 scroll 事件: 在顶部往上滚轮也触发加载更早内容。
+    el("terminalPanel").addEventListener("wheel", (event) => {
+      const wrap = document.querySelector(".timeline-wrap");
+      if (event.deltaY < 0 && wrap && wrap.scrollTop <= 80 && state.selected) loadOlderTerminal(state.selected);
+    }, { passive: true });
+    el("terminalPanel").addEventListener("dblclick", () => {
+      if (!String(window.getSelection?.() || "").trim()) jumpTerminalToLatest();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "End" || !state.terminalOpen || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target instanceof Element && event.target.closest("textarea, input, select, [contenteditable]")) return;
+      event.preventDefault();
+      jumpTerminalToLatest();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !el("planPanel").hidden) closePlanPanel();
+    });
     el("traceToggle").addEventListener("click", () => setTraceOpen(!state.traceOpen));
     el("traceRefresh").addEventListener("click", () => {
       const pane = state.panes.find((item) => item.pane_id === state.selected);
@@ -9755,8 +12832,14 @@
     });
     el("toggleRaw").addEventListener("click", async () => {
       if (state.traceOpen) setTraceOpen(false);
+      if (state.terminalOpen) {
+        state.terminalOpen = false;
+        state.terminalAbortController?.abort();
+        applyTerminalMode();
+      }
       state.rawVisible = !state.rawVisible;
       applyRawMode();
+      renderDetailPlanTools();
       if (state.rawVisible && state.selected) {
         el("rawText").textContent = "Raw 加载中…";
         try {
@@ -9936,6 +13019,7 @@
     window.addEventListener("pagehide", persistDraftsNow);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) persistDraftsNow();
+      else kickTerminalPoll();
     });
     el("composerText").addEventListener("paste", (event) => {
       const file = imageFileFromClipboard(event);
@@ -9980,6 +13064,8 @@
     document.addEventListener("click", handleOutsideMobileComposerClick, true);
     window.addEventListener("resize", () => {
       if (!isMobileLayout()) setMobileDrawer(false);
+      applyFloatPos();
+      layoutFloatMenu();
       applyMobileComposerState();
       applyMobileDrawerTogglePos();
       applyMobileComposerTogglePos();
@@ -9988,6 +13074,7 @@
     el("floatMain").addEventListener("pointerdown", startFloatDrag);
     el("floatMain").addEventListener("click", () => {
       if (state.floatDragging) return;
+      layoutFloatMenu();
       el("floatControl").classList.toggle("open");
     });
     el("escKey").addEventListener("click", () => sendKey("Escape"));
@@ -10056,7 +13143,8 @@
           state.captureLoadingPane === state.selected &&
           Boolean(state.captureAbortController)
         );
-        if (state.selected && !state.sharedFilesOpen && !paneSwitchCaptureInFlight) {
+        // 终端视图由自己的刷新节奏驱动 (terminalPollTick), 这里只刷对话视图。
+        if (state.selected && !state.sharedFilesOpen && !paneSwitchCaptureInFlight && !state.terminalOpen) {
           await loadCapture(state.selected, false);
         }
       } catch (error) {
@@ -10081,6 +13169,7 @@
     applyMobileComposerTogglePos();
     updateNotifyButton();
     applyRawMode();
+    applyTerminalMode();
     applyMobileComposerState();
     autoResizeComposer();
     // 先从服务端拉永久 prefs(分类/别名/顺序/活动), 覆盖本地默认后再开刷新循环; 服务端不可达则用本地值。

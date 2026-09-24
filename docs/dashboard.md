@@ -64,6 +64,47 @@ file. The file is re-read when it changes.
   `TMUX_CARD_LOCAL_ARTIFACT_ROOT` mentioned in replies become authenticated
   download / preview links. Hidden paths and credential-looking names are
   refused.
+- **Git row** — every card whose cwd is inside a Git repository shows a small
+  line: branch, **待归档 N** (untracked + modified files, with 新 / 改 split on
+  wide screens; amber from 50 files, 24 h since the last commit or no commit
+  yet, red from 200 files or 7 days), **未推送 N** or 无远端, **上次归档** (age of the last commit), and
+  with the plan integration **▶ task title** (click to open the plan). Git runs
+  only on a background pool (2 s timeout per command, cached 60 s per
+  repository, `GIT_OPTIONAL_LOCKS=0`); `/api/panes` never waits for it.
+- **Detail header** — 计划 / 归档 / 终端 are always shown. A button that cannot
+  be used is greyed out and says why on hover and on click (no plan, no live
+  AI, archive running, integration not configured, ...). On narrow screens they
+  move into the "⋯" menu.
+- **Plan panel and one-click archive** (optional) — a drawer (full screen on a
+  phone) with the plan file rendered as an outline tree plus 动态 / 分拣 / 原文
+  tabs and whitelisted task edits; 归档 sends a configured prompt to the idle AI
+  and reports what changed. Needs `CARDS_TOP_CLI` / `CARDS_ARCHIVE_PROMPT`; see
+  [plan-integration.md](plan-integration.md).
+- **Terminal view** — 终端 replaces the conversation with the pane's real
+  terminal (`/api/terminal/capture`, ANSI colours in a Dracula palette with a
+  minimum contrast of 4.5, bold / underline / reverse kept). It refreshes every
+  0.3 s while the AI works or output changed in the last 3 s, 1 s after ten
+  unchanged polls, 5 s while the page is hidden, and immediately after you send
+  or press a key; only changed rows are redrawn and the scroll position never
+  jumps while you type. The pane's window is resized to the viewer
+  (`/api/terminal/resize`, like a tmux client; skipped while a real terminal
+  client used that window in the last 30 s, in which case the view re-wraps
+  lines to the browser width instead). Claude windows get at most 109 columns:
+  Claude Code's fullscreen UI opens a code-changes side panel at 110 columns or
+  more. Scrolling up reads tmux scrollback, then
+  continues with the conversation records (Claude JSONL / Codex rollout) up to
+  the start of the session. Double-click or End jumps to the latest line. The
+  chosen view (对话 / 终端) applies to every window and is remembered per
+  browser.
+- **Card ↔ terminal** — `?pane=%12` (or `?pane=12`) opens that window's detail
+  view. With `TMUX_CARD_TERMINAL_URL` set, "⋯ → 打开完整终端页" points your web
+  terminal (for example ttyd attached to the same session) at the window
+  (`/api/terminal/focus`) and opens it. `/api/terminal/status` reports which
+  pane the terminal clients show and whether it matches a card.
+- **Phone layout** — the round ⌁ button opens a row with 计划 / 终端 / ESC; it
+  can be dragged, keeps its centre when opened, and is clamped back into view
+  after rotation. Collapsing the composer only collapses it (the draft is kept
+  per window); only the send button or shortcut sends.
 
 The page checks the served asset version on every poll and asks you to reload
 when `index.html` changed on disk, so an old tab does not silently run old code.
@@ -90,10 +131,21 @@ screen never completes a leader or supervisor job; only the owner's
 ## API (all under `TMUX_CARD_URL_PREFIX`, default `/cards`)
 
 Read: `/api/panes`, `/api/capture`, `/api/history_before`, `/api/jobs`,
-`/api/events`, `/api/trace`, `/api/files`, `/api/active-pane`.
+`/api/events`, `/api/trace`, `/api/files`, `/api/active-pane`,
+`/api/terminal/capture`, `/api/terminal/status`, `/api/plan`, `/api/plan/track`.
+
+`/api/terminal/capture?pane=%12[&lines=N][&before=ROW][&if_hash=H][&join=1]`
+returns the pane's rows with ANSI colours, numbered from the oldest history
+row (0) to the last screen row, plus geometry, cursor and a hash (`unchanged`
+when `if_hash` matches); `join=1` joins soft-wrapped rows. It never selects a
+window. `/api/terminal/status[?pane=%12]` lists the tmux clients on the
+session and, with `pane`, whether the terminal shows the same pane as the card.
+Both refuse cross-site requests (`403`).
 
 Write: `/api/send`, `/api/key`, `/api/choose`, `/api/pane/close`, `/api/prefs*`,
-`/api/upload`, `/api/files/*`. Writes must be JSON (`Content-Type:
+`/api/upload`, `/api/files/*`, `/api/terminal/focus` (`{pane, pane_pid,
+pane_start_time}`), `/api/terminal/resize` (`{pane, cols 40–250, rows
+12–120}`), `/api/plan/action`, `/api/archive-request`. Writes must be JSON (`Content-Type:
 application/json`), uploads must carry `X-Cards-Upload: 1`, and requests a
 browser marks as cross-site are refused (CSRF protection). `/api/key` only
 accepts digits, `Escape`, `C-c`, and `C-m`.
@@ -120,4 +172,6 @@ See [configuration.md](configuration.md#dashboard). The most common ones:
 `TMUX_CARD_HOST`, `TMUX_CARD_PORT`, `TMUX_CARD_SESSION`, `TMUX_CARD_URL_PREFIX`,
 `TMUX_CARD_TMUX_SOCKET`, `TMUX_CARD_LOCAL_ARTIFACT_ROOT`,
 `TMUX_CARD_PUBLIC_SHARE_HOST` / `TMUX_CARD_PUBLIC_SHARE_DIR` (map links to a
-public static host of yours back to local files for authenticated preview).
+public static host of yours back to local files for authenticated preview),
+`TMUX_CARD_TERMINAL_URL` (full web terminal page), and the optional plan
+integration `CARDS_TOP_CLI` / `CARDS_ARCHIVE_PROMPT`.

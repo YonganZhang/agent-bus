@@ -17,6 +17,8 @@
   code under test can never run it.
 * Auto-approve switches from the developer's environment are cleared so tests
   see the documented defaults.
+* Playwright keeps using the browsers installed under the real home
+  (``PLAYWRIGHT_BROWSERS_PATH``), read-only.
 
 These variables are set at import time (before any test module imports the bus
 modules, which read them once at import).
@@ -40,13 +42,17 @@ for _key in ("TMUX", "TMUX_PANE", "AGENT_BUS_AUTO_APPROVE", "CARDS_AUTO_APPROVE"
 os.environ["TMUX_TMPDIR"] = str(_TMP / "tmux")
 (_TMP / "tmux").mkdir()
 (_TMP / "home").mkdir()
+# Browser tests (Playwright) still find browsers installed in the real home's cache.
+if "PLAYWRIGHT_BROWSERS_PATH" not in os.environ and (Path.home() / ".cache" / "ms-playwright").is_dir():
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(Path.home() / ".cache" / "ms-playwright")
 os.environ["HOME"] = str(_TMP / "home")
 os.environ["HISTFILE"] = str(_TMP / "home" / ".bash_history")
 os.environ["AGENT_BUS_DIR"] = str(_TMP / "bus")
 os.environ["AGENT_BUS_SNAPSHOT_DIR"] = str(_TMP / "snapshots")
 for _key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR", "AGENT_BUS_DEFAULT_CODEX_HOME", "AGENT_BUS_CODEX_HOMES_ROOT",
              "AGENT_BUS_DASHBOARD_STATE_DIR", "AGENT_CLI_TARGETS", "AGENT_EVENT_LEDGER_DIR", "WEBTERM_ENV",
-             "TMUX_CARD_USER", "TMUX_CARD_PASS"):
+             "TMUX_CARD_USER", "TMUX_CARD_PASS", "CARDS_TOP_CLI", "CARDS_ARCHIVE_PROMPT", "CARDS_TOP_PLAN_FILES",
+             "TMUX_CARD_TERMINAL_URL", "TMUX_CARD_PROJECTS_DIR"):
     os.environ.pop(_key, None)
 for _key, _value in (("GIT_AUTHOR_NAME", "Agent Bus Tests"), ("GIT_AUTHOR_EMAIL", "tests@example.invalid"),
                      ("GIT_COMMITTER_NAME", "Agent Bus Tests"), ("GIT_COMMITTER_EMAIL", "tests@example.invalid")):

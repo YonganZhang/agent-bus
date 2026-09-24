@@ -114,6 +114,11 @@ variables keep historical `SECRETARY_` / `TMUX_CARD_` prefixes.
 | `TMUX_CARD_LOCAL_ARTIFACT_ROOT` | `~` | Root for authenticated local artefact downloads |
 | `TMUX_CARD_PUBLIC_SHARE_HOST` | unset | Optional public static host whose paths map to `<artifact root>/<share dir>/` |
 | `TMUX_CARD_PUBLIC_SHARE_DIR` | `share-public` | Directory under the artefact root for that mapping |
+| `TMUX_CARD_TERMINAL_URL` | unset | Full web terminal page (e.g. ttyd on the same session); enables "⋯ → 打开完整终端页" |
+| `TMUX_CARD_PROJECTS_DIR` | `~/projects` | Plan search bound for panes outside Git (`<dir>/<project>`) |
+| `CARDS_TOP_CLI` | unset | Optional plan CLI; enables the plan panel, task title on cards and triage ([plan-integration.md](plan-integration.md)) |
+| `CARDS_ARCHIVE_PROMPT` | unset | Optional prompt file; enables the 归档 button |
+| `CARDS_TOP_PLAN_FILES` | `_wiki-methodology/_top/_task_plan.md:wiki-methodology/top/task_plan.md` | Plan locations relative to a project directory |
 | `TMUX_CARD_SHARED_FILES_DIR` | `$AGENT_BUS_DASHBOARD_STATE_DIR/shared_files` | Shared files area |
 | `TMUX_CARD_MAX_UPLOAD_BYTES` | `8388608` | Composer upload limit |
 | `TMUX_CARD_MAX_SHARED_FILE_BYTES` | `0` | Shared file size cap (`0`: none) |

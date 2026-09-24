@@ -56,9 +56,11 @@ function requestBottomScroll() {{}}
 function loadDraft() {{}}
 function selectTracePane() {{}}
 function updateLastPromptButton() {{}}
+function renderDetailPlanTools() {{}}
 function isMobileLayout() {{ return false; }}
 function setMobileDrawer() {{}}
 function clearCaptureLoading() {{}}
+function syncTerminalModeForPane() {{}}
 function mergeOptimisticUserPrompts() {{ return []; }}
 function freshFavoriteCapture() {{ return null; }}
 function renderCachedPane() {{ calls.cached += 1; return true; }}

@@ -161,8 +161,23 @@ It is meant for a leader pane you fully control. Turn it off with
   `/api/choose` do not. None of them apply the CLI's `needs_input` or
   AI-exited refusals. A click on a numbered option sends that digit key; a
   click on an unnumbered dialog option uses the verified row-by-row driver.
+- Read endpoints that expose process / tmux state or run a subprocess
+  (`/api/terminal/capture`, `/api/terminal/status`, `/api/plan/track`) also
+  refuse cross-site requests.
+- `/api/terminal/resize` sizes a pane's tmux window for the in-card terminal
+  view (bounded 40–250 × 12–120, skipped while a real terminal client used that
+  window in the last 30 s); `/api/terminal/focus` switches the session's
+  current window (every client on a shared session follows) after checking the
+  pane instance.
+- The optional plan integration runs the program named by `CARDS_TOP_CLI` as
+  your user, with argument lists (no shell), `stdin=/dev/null`, timeouts, a
+  whitelist of seven write actions and validated fields; the project is only
+  derived from the pane's live cwd. `/api/archive-request` sends the
+  `CARDS_ARCHIVE_PROMPT` text through the normal send path, only to an idle
+  live Claude / Codex. Both are off (`501`) unless configured; see
+  [plan-integration.md](plan-integration.md).
 - Binds to `127.0.0.1` by default. Logged-in users can send text and raw keys to
-  panes, answer dialogs, upload files, and close panes, so treat the password
+  panes, answer dialogs, upload files, resize and close panes, so treat the password
   like a shell password. For remote access, use a reverse proxy with TLS and an
   extra authentication layer.
 - Local file downloads are limited to `TMUX_CARD_LOCAL_ARTIFACT_ROOT`
