@@ -1,12 +1,42 @@
-# Agent Bus
+<div align="center">
 
-A supervisor for many already-running Claude Code and Codex CLI sessions in tmux:
-dispatch, steer, verify, recover — driven by the providers' own structured signals
-rather than screen scraping.
+# 🚌 Agent Bus
 
-[中文说明](README.zh-CN.md)
+**Supervise many already-running Claude Code and Codex CLI sessions in tmux — dispatch, steer, verify, recover — from the providers' own structured signals, plus a phone-friendly web dashboard ("AI Session Cards").**
 
-## Why
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg?logo=python&logoColor=white)](#-quick-start)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey.svg?logo=linux&logoColor=white)](#-quick-start)
+[![tmux 3.2+](https://img.shields.io/badge/tmux-3.2%2B-1BB91F.svg?logo=tmux&logoColor=white)](#-quick-start)
+[![Tests: passing](https://img.shields.io/badge/tests-passing-brightgreen.svg)](#-tests)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-supported-D97757.svg)](#state-from-the-providers-own-signals)
+[![Codex CLI](https://img.shields.io/badge/Codex%20CLI-supported-412991.svg)](#state-from-the-providers-own-signals)
+
+[中文说明](README.zh-CN.md) · [Docs](docs/) · [Dashboard](docs/dashboard.md) · [Safety model](docs/safety-model.md)
+
+</div>
+
+---
+
+## 📖 Contents
+
+- [✨ Features](#-features)
+- [🖼️ Screenshots](#️-screenshots)
+- [🚀 Quick start](#-quick-start)
+- [🧭 Architecture](#-architecture)
+- [🗂️ Cards dashboard at a glance](#️-cards-dashboard-at-a-glance)
+- [🔌 Optional integration: plans and archiving](#-optional-integration-plans-and-archiving)
+- [🛡️ Security model](#️-security-model)
+- [⚙️ Configuration](#️-configuration)
+- [🧪 Tests](#-tests)
+- [⚖️ How it compares](#️-how-it-compares)
+- [⚠️ Limitations and known issues](#️-limitations-and-known-issues)
+- [📁 Repository layout](#-repository-layout)
+- [🗺️ Roadmap](#️-roadmap)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+
+## ✨ Features
 
 If you run a dozen or more interactive Claude Code / Codex sessions side by side
 in tmux, the hard problems are not "how do I type into a pane". They are:
@@ -24,8 +54,6 @@ Agent Bus is a set of small, stdlib-only Python tools plus a web dashboard that
 handle these problems on a single Linux machine. It drives the official
 interactive CLIs through tmux; it does not replace them, proxy their APIs, or
 touch their credentials.
-
-## What it does
 
 ### Leader / worker supervision
 
@@ -54,7 +82,9 @@ touch their credentials.
   registration. If the pane now runs a different process, the send fails closed
   instead of hitting whatever took its place.
 - Long or multi-line tasks (`--task-file`, `--text-file`) are written to a task
-  file and only a one-line pointer is pasted.
+  file and only a one-line pointer is pasted; the pointer carries the first 16
+  hex digits of the file's SHA-256, which `sha256sum` on the receiving side
+  reproduces.
 - A pane whose provider reports `needs_input` (a permission prompt or other
   dialog is open) is never typed into: pasting text and pressing Enter there
   would confirm whatever option happens to be highlighted.
@@ -106,7 +136,7 @@ touch their credentials.
   driving is skipped for that round.
 - Every automatic answer is written to the event ledger
   (`worker_prompt_auto_answered`, `pane_prompt_auto_answered`).
-- **Off by default.** See [Security & responsible use](#security--responsible-use).
+- **Off by default.** See [Security model](#️-security-model).
 
 ### One event ledger
 
@@ -133,6 +163,10 @@ touch their credentials.
   `recovery verify` independently checks that each pane runs the expected
   session in the expected `CODEX_HOME`. `recovery auto` chains them against one
   pinned snapshot (dry-run unless `--yes`).
+- `agent_window.sh restart` keeps the card's place in the grid
+  (`agent-bus cards order-replace OLD NEW` moves the order slot to the new pane)
+  and accepts an explicit `--resume-id <ID>` even when the old window's AI has
+  already exited.
 - The optional boot helper creates only an idle placeholder shell at a high
   window number (default 999), so restored windows get their original numbers
   back. After a restore it answers start-up dialogs on the panes it restored:
@@ -151,61 +185,32 @@ touch their credentials.
 
 ### Cards dashboard
 
-- A single-page web UI (`dashboard/`) with one card per tmux pane: live
-  timeline parsed from transcripts / rollouts, busy / idle / waiting status,
-  a sub-agent progress panel, workflow progress, and clickable multiple-choice
-  questions and dialogs.
-- Categories, favourites, and aliases; works on a phone (mobile layout and
-  composer).
-- A trace view of one session's tool calls and sub-agents, built from local
-  logs with secrets redacted.
-- HTTP Basic Auth on every route; refuses all requests when no credentials are
-  configured. Write requests that a browser marks as cross-site, JSON writes
-  without `Content-Type: application/json`, and uploads without the
-  `X-Cards-Upload` header are refused (CSRF protection).
-- The dashboard is a remote terminal for a person: its send box pastes text
-  and presses Enter without the CLI's `needs_input` / AI-exited refusals.
-  Clicking a numbered option sends that digit key; clicking an option of an
-  unnumbered dialog uses the verified row-by-row driver.
-- Category names default to a fixed Chinese set (`开发`, `论文`, `私人`, `待处理`,
-  `其他`); `最近` and `全部` are views.
+A single-page web UI (`dashboard/`, stdlib HTTP server) with one card per tmux
+pane: the live conversation, status, Git state, an in-card terminal, an
+optional task-plan panel, and a mobile layout. See the
+[feature table](#️-cards-dashboard-at-a-glance) below and
+[docs/dashboard.md](docs/dashboard.md).
 
-## Architecture
+## 🖼️ Screenshots
 
-```
-            ┌──────────────── you / a leader AI ────────────────┐
-            │  bin/agent-bus (CLI)          dashboard (browser) │
-            └──────┬───────────────────────────────┬────────────┘
-                   │                               │ HTTP + Basic Auth
-   ┌───────────────▼──────────────┐   ┌────────────▼────────────┐
-   │ scripts/                     │   │ dashboard/server.py     │
-   │  cli_bridge   supervisor     │◄──┤  (imports the same      │
-   │  leader       leader_daemon  │   │   provider modules)     │
-   │  codex_app    window_transition   └────────────┬────────────┘
-   │  secretary_recovery          │                │
-   │  provider_state  dialogs     │                │
-   │  claude_sessions / *_subagents / pane_detectors│
-   └──────┬───────────────┬───────┴────────────────┘
-          │               │ append-only events + job files
-          │        ┌──────▼──────────────────────────┐
-          │        │ $AGENT_BUS_DIR/event-ledger/    │
-          │        └─────────────────────────────────┘
-          │ tmux (paste / keys / capture)       read-only provider evidence
-   ┌──────▼──────────────────────────┐   ┌──────────────────────────────────┐
-   │ tmux panes running `claude` and │──►│ claude agents --json, transcripts│
-   │ `codex` interactive CLIs        │   │ Codex rollouts (open fds), /proc │
-   └─────────────────────────────────┘   └──────────────────────────────────┘
-```
+All screenshots show **synthetic content only** — a private tmux server, fake
+projects and a made-up conversation, produced by
+[`tests/e2e/readme_screenshots.py`](tests/e2e/readme_screenshots.py).
 
-More detail: [docs/architecture.md](docs/architecture.md).
+| Cards and conversation (desktop) | Task plan panel (optional integration) |
+|---|---|
+| ![Cards grid with Git rows and the selected Claude conversation](docs/images/cards-desktop.png) | ![Plan panel with progress bar, outline tree and phase tables](docs/images/plan-panel.png) |
+| **In-card terminal view** | **Phone layout with the ⌁ menu** |
+| ![The pane's real terminal rendered in the card with ANSI colours](docs/images/terminal-view.png) | ![Mobile conversation view with the round menu opened](docs/images/mobile-cards.png) |
 
-## Install
+## 🚀 Quick start
 
 Requirements:
 
 - Linux (uses `/proc`, `fcntl`, tmux)
-- tmux 3.x
-- Python 3.10+ (standard library only; `pytest` and Node.js for the tests)
+- tmux 3.2 or newer (developed and tested with tmux 3.7)
+- Python 3.10+ (standard library only; `pytest` and Node.js for the tests,
+  optionally Playwright + Chromium for the browser tests)
 - Claude Code and/or the Codex CLI, already logged in
 
 ```bash
@@ -215,9 +220,7 @@ agent-bus --help
 ```
 
 Nothing is installed system-wide. Runtime state goes to `$AGENT_BUS_DIR`
-(default `~/.codex/agent-bus`) — see [Configuration](#configuration).
-
-## Quick start
+(default `~/.codex/agent-bus`) — see [Configuration](#️-configuration).
 
 Start a tmux session with a Claude Code (or Codex) pane, then:
 
@@ -272,13 +275,89 @@ auto-restore) are in [contrib/systemd/](contrib/systemd/). The Claude Code
 
 Further reading: [leader workflow](docs/leader-workflow.md),
 [recovery](docs/recovery.md), [dashboard](docs/dashboard.md),
+[plan integration](docs/plan-integration.md),
 [safety model](docs/safety-model.md).
 
-## Security & responsible use
+## 🧭 Architecture
+
+```
+            ┌──────────────── you / a leader AI ────────────────┐
+            │  bin/agent-bus (CLI)          dashboard (browser) │
+            └──────┬───────────────────────────────┬────────────┘
+                   │                               │ HTTP + Basic Auth
+   ┌───────────────▼──────────────┐   ┌────────────▼────────────┐
+   │ scripts/                     │   │ dashboard/server.py     │
+   │  cli_bridge   supervisor     │◄──┤  (imports the same      │
+   │  leader       leader_daemon  │   │   provider modules)     │
+   │  codex_app    window_transition   └──────┬─────────┬──────┘
+   │  secretary_recovery          │           │         │ optional
+   │  provider_state  dialogs     │           │         ▼
+   │  claude_sessions / *_subagents / pane_detectors  plan CLI
+   └──────┬───────────────┬───────┴───────────┘  (CARDS_TOP_CLI)
+          │               │ append-only events + job files
+          │        ┌──────▼──────────────────────────┐
+          │        │ $AGENT_BUS_DIR/event-ledger/    │
+          │        └─────────────────────────────────┘
+          │ tmux (paste / keys / capture / resize)   read-only provider evidence
+   ┌──────▼──────────────────────────┐   ┌──────────────────────────────────┐
+   │ tmux panes running `claude` and │──►│ claude agents --json, transcripts│
+   │ `codex` interactive CLIs        │   │ Codex rollouts (open fds), /proc │
+   └─────────────────────────────────┘   └──────────────────────────────────┘
+```
+
+More detail: [docs/architecture.md](docs/architecture.md).
+
+## 🗂️ Cards dashboard at a glance
+
+| Feature | What it does | Desktop | Phone |
+|---|---|:---:|:---:|
+| 🃏 Cards grid / list | One card per pane: provider, project, status (running / idle / waiting / needs attention / quota limited), preview, job state | ✅ | ✅ |
+| 💬 Conversation timeline | Claude transcript / Codex rollout history with the live screen tail, paged on demand; Markdown tables, nested lists, code | ✅ | ✅ |
+| 🔘 Choices and dialogs | Numbered pickers and unnumbered dialogs rendered as buttons (verified row-by-row driver) | ✅ | ✅ |
+| ⌨️ Composer | Send text and uploads; collapsing it only collapses it (the draft is kept per window) — only Send sends | ✅ | ✅ |
+| 🌿 Git row | Branch, **待归档 N** (新 / 改), **未推送 N** or 无远端, **上次归档** age, **▶ current task** (with the plan integration); computed off the request path | ✅ | ✅ (compact) |
+| 🧰 Title-bar buttons | 计划 / 归档 / 终端 always shown; greyed out with the reason when unavailable | ✅ | ✅ (in "⋯" / ⌁ menus) |
+| 🖥️ Terminal view | The pane's real terminal inside the card: ANSI colours, 0.3 s adaptive refresh, no scroll jitter, window sized to the viewer (Claude windows at most 109 columns), scroll up into scrollback and then the conversation records | ✅ | ✅ |
+| 🔗 Card ↔ terminal | `?pane=%12` deep links; "打开完整终端页" points your web terminal at the pane (needs `TMUX_CARD_TERMINAL_URL`); `/api/terminal/status` checks both show the same pane | ✅ | ✅ |
+| 📋 Plan panel *(optional)* | Plan file as an outline tree with progress, notes, 动态 / 分拣 / 原文 tabs and whitelisted edits | ✅ drawer | ✅ full screen |
+| 📦 One-click archive *(optional)* | Sends your archive prompt to the idle AI and reports new commits, files left and whether the plan changed | ✅ | ✅ |
+| 🤖 Sub-agents and workflows | Progress of Claude sub-agents, Codex sub-agent threads and multi-agent workflows | ✅ | ✅ |
+| 🔎 Trace view | Tree of one session's tool calls and sub-agents with timing, secrets redacted | ✅ | ✅ |
+| 🗃️ Organisation | Categories, favourites, aliases, ordering — stored server-side, synced across devices | ✅ | ✅ |
+| 📎 Files | Shared upload area; local artefact paths in replies become authenticated download / preview links | ✅ | ✅ |
+| ⌁ Floating menu | Draggable round button with 计划 / 终端 / ESC; keeps its centre when opened, clamped back into view on rotation | ✅ | ✅ |
+
+The UI text is Chinese. Every write endpoint requires JSON and refuses
+cross-site requests; see [docs/dashboard.md](docs/dashboard.md) for the API.
+
+## 🔌 Optional integration: plans and archiving
+
+The plan panel, the task title on the card Git row, triage (分拣) and the
+one-click archive are driven by an **external plan CLI** that speaks a small
+JSON contract (`plan show` / `plan list` / `plan add|edit|note|start|block|cancel|reopen` / `track`).
+The author uses a share-top-style plan CLI; any tool that follows the contract
+works. Cards never parses or rewrites a plan file itself, resolves the project
+only from the pane's live cwd, runs the CLI without a shell and with
+timeouts, and only allows those seven write actions.
+
+```bash
+CARDS_TOP_CLI=/path/to/plan-cli.py \
+CARDS_ARCHIVE_PROMPT=/path/to/archive-prompt.md \
+python3 dashboard/server.py
+```
+
+Without these variables everything else works; the 计划 and 归档 buttons stay
+visible but greyed out ("需要配置 share-top 集成 …") and `/api/plan*` /
+`/api/archive-request` answer `501`. The contract, plan-file shape and note
+format are in [docs/plan-integration.md](docs/plan-integration.md);
+[`tests/dashboard/fixtures/fake_plan_cli.py`](tests/dashboard/fixtures/fake_plan_cli.py)
+is a minimal reference implementation.
+
+## 🛡️ Security model
 
 - **The dashboard is powerful.** Anyone who can log in can type into your AI
-  sessions, send raw keys, answer dialogs, and close panes. It only has HTTP
-  Basic Auth. Keep it bound to `127.0.0.1` (the default) and, if you need
+  sessions, send raw keys, answer dialogs, resize and close panes. It only has
+  HTTP Basic Auth. Keep it bound to `127.0.0.1` (the default) and, if you need
   remote or phone access, put it behind a reverse proxy that adds TLS and its
   own authentication.
 - **Auto-approve is opt-in.** It is off unless you run
@@ -308,6 +387,11 @@ Further reading: [leader workflow](docs/leader-workflow.md),
   when the request carries the pane pid and start time, as the page does)
   checks that the pane process is still the one the page showed; `/api/key`
   and `/api/choose` do not. None of them apply `needs_input` or AI-exit checks.)
+- **CSRF and read probes.** Writes must be `application/json`; requests a
+  browser marks as cross-site are refused, and so are cross-site reads of
+  `/api/terminal/*` and `/api/plan/track`.
+- **The optional plan CLI runs as you.** Only configure a CLI you trust; Cards
+  passes it argument lists (never a shell string) and validated fields.
 - **Provider terms.** Agent Bus drives the official interactive CLIs through a
   terminal, as you would. It does not extract, store, or forward credentials,
   and it does not call provider APIs itself. You are responsible for using
@@ -323,7 +407,59 @@ explicitly (`agent_window.sh restart|close`, `recovery ... --yes`, the
 dashboard's close button); and it does not close a leader as completed without
 recorded evidence. Details: [docs/safety-model.md](docs/safety-model.md).
 
-## How it compares
+## ⚙️ Configuration
+
+All paths default to locations compatible with an existing `~/.codex` layout.
+The most important variables:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `AGENT_BUS_DIR` | `~/.codex/agent-bus` | Bus state: targets, event ledger, leader sessions, task files, Codex runs |
+| `AGENT_BUS_DASHBOARD_STATE_DIR` | `$AGENT_BUS_DIR/card-dashboard` | Dashboard prefs, uploads, transcript map |
+| `AGENT_BUS_SNAPSHOT_DIR` | `$AGENT_BUS_DEFAULT_CODEX_HOME/tmux-snapshots` | Recovery snapshots |
+| `AGENT_BUS_DEFAULT_CODEX_HOME` | `~/.codex` | The shared/default Codex home (never taken from `CODEX_HOME`) |
+| `AGENT_BUS_CODEX_HOMES_ROOT` | `~/.codex-homes` | Parent of isolated per-window / per-worker Codex homes |
+| `AGENT_BUS_AUTO_APPROVE` | unset | `1`/`0` forces auto-approve on/off (overrides the config switch) |
+| `CARDS_AUTO_APPROVE` | unset | `1` starts the dashboard's background auto-approve loop; `0` vetoes it |
+| `AGENT_BUS_CLAUDE_PERMISSION_MODE` | unset | Extra `--permission-mode` for Claude windows opened by `agent_window.sh` |
+| `SECRETARY_TMUX_SESSION` | `secretary_web` | tmux session used by recovery and window tools |
+| `TMUX_CARD_HOST` / `TMUX_CARD_PORT` | `127.0.0.1` / `7795` | Dashboard bind address |
+| `WEBTERM_ENV` | `$AGENT_BUS_DIR/webterm.env` | Dashboard Basic Auth file (`WEBTERM_USER`, `WEBTERM_PASS`) |
+| `TMUX_CARD_TERMINAL_URL` | unset | Full web terminal page for "打开完整终端页" |
+| `CARDS_TOP_CLI` / `CARDS_ARCHIVE_PROMPT` | unset | Optional plan / archive integration |
+| `PYTHON` | `python3` | Interpreter used by `bin/agent-bus` |
+
+The complete list (timeouts, cache sizes, leader daemon tuning, …) is in
+[docs/configuration.md](docs/configuration.md). Several variables keep the
+historical `SECRETARY_` / `TMUX_CARD_` prefixes for compatibility.
+
+## 🧪 Tests
+
+```bash
+python3 -m pytest -q
+```
+
+Last full run: **950 passed, 1 skipped, 1 xfailed** (Linux, Python 3.10,
+tmux 3.7, Node.js 22, Playwright Chromium; no plan CLI installed). There is no
+CI yet, so the badge above is static.
+
+- The suite starts its own tmux server in a temporary directory
+  (`TMUX_TMPDIR`, with `$TMUX` removed) and uses temporary bus directories and a
+  temporary `HOME`, so it never touches your real tmux sessions,
+  `~/.codex/agent-bus` or `~/.claude`. Terminal-view tests drive a **real**
+  tmux server on a private socket.
+- Frontend tests run the page's JavaScript under Node.js, which is required.
+  Browser tests use Playwright + Chromium and are skipped when either is
+  missing (`python3 -m playwright install chromium`).
+- Plan-panel tests use the synthetic
+  [`fake_plan_cli.py`](tests/dashboard/fixtures/fake_plan_cli.py), so no
+  external plan tool is needed.
+- Tests that need `tmux`, or the `codex` binary (one app-server schema check),
+  are skipped when those are missing.
+- `tests/e2e/*.py` are manual Playwright scripts (against a running dashboard,
+  or the self-contained screenshot generator) and are not collected by pytest.
+
+## ⚖️ How it compares
 
 Several good projects work in this space; they make different trade-offs.
 
@@ -350,31 +486,7 @@ fallback). If you want sandboxes, worktree-per-agent isolation, or remote access
 without running your own reverse proxy, one of the projects above may fit
 better.
 
-## Configuration
-
-All paths default to locations compatible with an existing `~/.codex` layout.
-The most important variables:
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AGENT_BUS_DIR` | `~/.codex/agent-bus` | Bus state: targets, event ledger, leader sessions, task files, Codex runs |
-| `AGENT_BUS_DASHBOARD_STATE_DIR` | `$AGENT_BUS_DIR/card-dashboard` | Dashboard prefs, uploads, transcript map |
-| `AGENT_BUS_SNAPSHOT_DIR` | `$AGENT_BUS_DEFAULT_CODEX_HOME/tmux-snapshots` | Recovery snapshots |
-| `AGENT_BUS_DEFAULT_CODEX_HOME` | `~/.codex` | The shared/default Codex home (never taken from `CODEX_HOME`) |
-| `AGENT_BUS_CODEX_HOMES_ROOT` | `~/.codex-homes` | Parent of isolated per-window / per-worker Codex homes |
-| `AGENT_BUS_AUTO_APPROVE` | unset | `1`/`0` forces auto-approve on/off (overrides the config switch) |
-| `CARDS_AUTO_APPROVE` | unset | `1` starts the dashboard's background auto-approve loop; `0` vetoes it |
-| `AGENT_BUS_CLAUDE_PERMISSION_MODE` | unset | Extra `--permission-mode` for Claude windows opened by `agent_window.sh` |
-| `SECRETARY_TMUX_SESSION` | `secretary_web` | tmux session used by recovery and window tools |
-| `TMUX_CARD_HOST` / `TMUX_CARD_PORT` | `127.0.0.1` / `7795` | Dashboard bind address |
-| `WEBTERM_ENV` | `$AGENT_BUS_DIR/webterm.env` | Dashboard Basic Auth file (`WEBTERM_USER`, `WEBTERM_PASS`) |
-| `PYTHON` | `python3` | Interpreter used by `bin/agent-bus` |
-
-The complete list (timeouts, cache sizes, leader daemon tuning, …) is in
-[docs/configuration.md](docs/configuration.md). Several variables keep the
-historical `SECRETARY_` / `TMUX_CARD_` prefixes for compatibility.
-
-## Limitations and known issues
+## ⚠️ Limitations and known issues
 
 - It reads the Claude Code and Codex CLIs' screens, logs, and JSONL formats.
   Those are not stable public APIs; upstream releases can change them. It
@@ -391,8 +503,13 @@ historical `SECRETARY_` / `TMUX_CARD_` prefixes for compatibility.
   docs, and most CLI help are in English.
 - Dialog auto-approve is pattern based. A new dialog shape is treated as "not a
   permission dialog" and left for a human, which is safe but may need updates.
+- The in-card terminal view resizes the pane's tmux window to the viewer
+  (unless a real terminal client used that window in the last 30 s); opening
+  the full terminal page hands the size back to the real clients. Claude Code's
+  fullscreen UI opens a code-changes side panel at 110 columns or more, so
+  Claude windows are capped at 109 columns in the terminal view.
 
-## Repository layout
+## 📁 Repository layout
 
 ```
 bin/agent-bus            CLI dispatcher (bin/secretary-bus is an alias)
@@ -407,31 +524,43 @@ scripts/                 bus modules (stdlib Python) and shell helpers
   codex_app.py           Codex app-server workers
   secretary_recovery.py  snapshots and recovery; stamp_live_panes.py
   window_transition.py   Claude <-> Codex hand-over for a window
+  cards_control.py       `agent-bus cards ...` (favourites, categories, aliases, order)
   agent_window.sh        open / new / restart / close windows with explicit session choice
   create-isolated-codex-home.sh
 dashboard/               Cards web UI (server.py, index.html, trace view)
 contrib/boot/            ensure-tmux-session, auto-restore
 contrib/systemd/         example user units
 contrib/claude-hooks/    tmux-session-stamp.sh (Claude Code hook)
-docs/                    architecture, safety model, leader workflow, recovery, dashboard, configuration
-tests/                   bus tests, tests/dashboard/, tests/e2e/ (manual browser scripts)
+docs/                    architecture, safety model, leader workflow, recovery, dashboard,
+                         plan integration, configuration; images/ for the README
+tests/                   bus tests, tests/dashboard/ (incl. fixtures/fake_plan_cli.py),
+                         tests/e2e/ (manual browser scripts, screenshot generator)
 ```
 
-## Tests
+## 🗺️ Roadmap
 
-```bash
-python3 -m pytest -q
-```
+Plans, not promises:
 
-The test suite starts its own tmux server in a temporary directory
-(`TMUX_TMPDIR`, with `$TMUX` removed) and uses temporary bus directories, so it
-never touches your real tmux sessions or `~/.codex/agent-bus`. Frontend tests
-run the page's JavaScript under Node.js, which is required. Tests that need
-`tmux`, or the `codex` binary (one app-server schema check), are skipped when
-those are missing.
-`tests/e2e/*.py` are manual Playwright scripts against a running dashboard and
-are not collected by pytest.
+- [ ] GitHub Actions CI (the tests badge is static until then).
+- [ ] An English UI option for the dashboard (the UI text is Chinese today).
+- [ ] Adapters for other planning tools on top of the documented plan-CLI contract.
+- [ ] A simpler install path (pipx or a single install script) instead of `PATH` + clone.
+- [ ] Follow upstream changes to `claude agents --json`, transcripts and Codex rollouts as they ship.
 
-## License
+## 🤝 Contributing
+
+Issues and pull requests are welcome.
+
+- Run `python3 -m pytest -q` (and `python3 -m py_compile` on touched files)
+  before sending a change; add a test that fails without it.
+- Keep the runtime stdlib-only; test-only tools (pytest, Node.js, Playwright)
+  are fine.
+- Test fixtures, screenshots and examples must be **synthetic**: no real
+  session ids, transcripts, project names, paths or credentials. Regenerate the
+  README images with `python3 tests/e2e/readme_screenshots.py`.
+- Please report security problems privately first (open an issue asking for a
+  contact, without details).
+
+## 📄 License
 
 [MIT](LICENSE) © 2026 Yongan Zhang

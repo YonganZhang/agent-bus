@@ -21,6 +21,7 @@ __pycache__/
 *.pid
 *.bak*
 *.png
+!/docs/images/*.png
 *.env
 prefs.json
 claude_map.json
