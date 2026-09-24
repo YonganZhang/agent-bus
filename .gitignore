@@ -1,0 +1,34 @@
+# Whitelist: ignore everything, then allow tracked source explicitly.
+/*
+!/.gitignore
+!/LICENSE
+!/README.md
+!/README.zh-CN.md
+!/pytest.ini
+!/conftest.py
+!/bin/
+!/scripts/
+!/dashboard/
+!/contrib/
+!/docs/
+!/tests/
+
+# Never track machine artifacts or runtime state, even inside allowed dirs.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.log
+*.pid
+*.bak*
+*.png
+*.env
+prefs.json
+claude_map.json
+uploads/
+shared_files/
+_artifacts/
+_tmp/
+_tests/
+_reports/
+.playwright-cli/
+.codegraph/

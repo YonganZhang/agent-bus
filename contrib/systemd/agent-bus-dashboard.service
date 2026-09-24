@@ -1,0 +1,23 @@
+# Cards dashboard. Binds to 127.0.0.1 by default; put it behind a TLS reverse
+# proxy with its own authentication if you need remote/mobile access.
+# Credentials: WEBTERM_USER / WEBTERM_PASS in $AGENT_BUS_DIR/webterm.env
+# (default ~/.codex/agent-bus/webterm.env, mode 600) or TMUX_CARD_USER /
+# TMUX_CARD_PASS in the environment.
+[Unit]
+Description=Agent Bus Cards dashboard
+After=network.target agent-bus-tmux.service
+
+[Service]
+Type=simple
+Environment=TMUX_CARD_HOST=127.0.0.1
+Environment=TMUX_CARD_PORT=7795
+Environment=TMUX_CARD_SESSION=secretary_web
+# Opt-in background auto-approve of permission-type dialogs (off by default):
+# Environment=CARDS_AUTO_APPROVE=1
+ExecStart=/usr/bin/env python3 /path/to/agent-bus/dashboard/server.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

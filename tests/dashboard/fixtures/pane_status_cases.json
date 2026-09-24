@@ -1,0 +1,426 @@
+[
+ {
+  "window": 0,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "\n─────────────────────────────────────────────\n <text>\n\n <text>\n\n <text>\n <text>\n <text>\n <text>\n <text>\n\n <text>\n <text>\n\n <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n\n✻ Sautéed for 6m 45s · done 6:30 pm · 3 messages hidden (/focus to show)\n\n<text>\n  <text>\n  <text>\n\n<text>\n  <text>\n     <text>\n     <text>\n     <text>\n     <text>\n\n✽ Hatching… (3m 58s · ↓ 12.9k tokens)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt · ← for agents                                                                             focus",
+  "expected_status": "running",
+  "official_status": "busy"
+ },
+ {
+  "window": 1,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "<text>\n<text>\n\n<text>\n<text>\n<text>\n<text>\n<text>\n<text>\n<text>\n\n<text>\n<text>\n<text>\n<text>\n<text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n✻ Sautéed for 13m 44s · done 4:03 pm · 6 messages hidden (/focus to show)\n                                                                                                                    <text>\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 2,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n✻ Cooked for 3m 18s · done Thursday 2:42 pm\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 3,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "\n <text>\n\n <text>\n <text>\n <text>\n\n <text>\n\n <text>\n\n <text>\n   <text>\n\n Enter to confirm · Esc to cancel\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n✻ Sautéed for 4m 39s · done 6:40 pm · 3 messages hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 4,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-luna medium · ~ · Main [default]                                                                                             Goal achieved (47m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 5,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n✻ Crunched for 1m 32s · done Tuesday, 18 Aug, 11:43 pm · 1 message hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 6,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n✻ Cogitated for 5m 16s · done Wednesday 5:57 pm · 17 messages hidden (/focus to\n  <text>\n\n● Background command \"<name>\" was stopped\n\n● Background command \"<name>\" was stopped\n\n● Background command \"<name>\" was stopped\n\n────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                    focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 7,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n\n✻ Sautéed for 4m 31s · done 5:13 pm · 6 messages hidden (/focus to show)\n\n<text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n     <text>\n\n✶ Working… (5m 58s · ↓ 14.8k tokens)\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt · ← for agents focus",
+  "expected_status": "running",
+  "official_status": "busy"
+ },
+ {
+  "window": 8,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n\n<text>\n\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-luna medium · ~/<proj> Goal achieved (5h 17m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 9,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "\n<text>\n  <text>\n  <text>\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n  <text>\n  <text>\n\n<text>\n  <text>\n  <text>\n  <text>\n  <text>\n      <text>\n    <text>\n      <text>\n    <text>\n\n<text>\n  <text>\n    <text>\n           <text>\n    <text>\n    <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n  <text>\n  <text>\n\n• Working (7s • esc to interrupt)\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>  Goal achieved (9h 9m)",
+  "expected_status": "running",
+  "official_status": null
+ },
+ {
+  "window": 10,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "           <text>\n\n           <text>\n           <text>\n\n           <text>\n           <text>\n\n           <text>\n           <text>\n           <text>\n\n<text>\n  <text>\n           <text>\n           <text>\n    <text>\n           <text>\n\n<text>\n  <text>\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n<text>\n  <text>\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n• Working (1m 00s • esc to interrupt)\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol high · ~/<proj>  Goal achieved (1h 1m)",
+  "expected_status": "running",
+  "official_status": null
+ },
+ {
+  "window": 11,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "    <text>\n        <text>\n    <text>\n\n<text>\n  <text>\n  <text>\n  <text>\n  <text>\n      <text>\n    <text>\n      <text>\n    <text>\n\n<text>\n  <text>\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n<text>\n<text>\n<text>\n<text>\n<text>\n<text>\n<text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n  <text>\n\n◦ Waiting for background terminal (1m 07s • esc to interrupt) · 2 background te…\n  <text>\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-luna medium · ~/<proj> Pursuing goal (2h 17m)",
+  "expected_status": "running",
+  "official_status": null
+ },
+ {
+  "window": 12,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n✻ Baked for 12m 1s · done Wednesday 2:50 am\n\n───────────────────────────────────────── <proj>─\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                    focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 13,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "\n<text>\n\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n\n<text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.5 high · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 14,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "\n<text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n  <text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n  <text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n    <text>\n\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>       Goal achieved (3s)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 15,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "                   <text>\n                   <text>\n                   <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n• Tip: run /status to see session details.\n\n\n  <text>\n  <text>\n\n› 1. Resume goal   Mark it active and continue when idle\n  2. Leave paused  Keep it paused; use /goal resume later\n\n  Press enter to confirm or esc to go back",
+  "expected_status": "waiting",
+  "official_status": null
+ },
+ {
+  "window": 16,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n    <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n✻ Brewed for 11m 12s · done Thursday, 20 Aug, 4:44 am · 71 messages hidden\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                    focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 17,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "<text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n\n✽ Cogitating… (5m 20s · ↓ 9.0k tokens)\n  <text>\n\n──────────────────────────────────────────────── <proj>─\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt · ← for agents focus",
+  "expected_status": "running",
+  "official_status": "busy"
+ },
+ {
+  "window": 18,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n✻ Churned for 2m 42s · done Friday 8:51 pm · 1 message hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                    focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 19,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "        <text>\n\n  <text>\n\n  <text>\n      <text>\n        <text>\n\n      <text>\n        <text>\n\n      <text>\n        <text>\n\n  <text>\n      <text>\n        <text>\n\n      <text>\n        <text>\n\n      <text>\n        <text>\n\n  <text>\n\n  <text>\n  <text>\n    <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.4-mini medium · ~/<proj> Goal achieved (8m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 20,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "\n  <text>\n\n  <text>\n     <text>\n     <text>\n\n  <text>\n     <text>\n     <text>\n     <text>\n\n  <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n\n  <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.5 high · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 21,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n\n  <text>\n  <text>\n     <text>\n  <text>\n     <text>\n\n  <text>\n  <text>\n  <text>\n\n✻ Cooked for 17s · done Sunday, 5 Jul, 4:14 pm\n\n<text>\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                    focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 22,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "    <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n\n✻ Cooked for 3m 29s · done 1:10 am · 16 messages hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                    focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 23,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n✻ Cogitated for 1m 50s · done 6:38 pm · 8 messages hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                    focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 24,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n\n  <text>\n    <text>\n  <text>\n    <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n    <text>\n  <text>\n    <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n✻ Cogitated for 2m 10s · done 6:44 pm · 1\n  <text>\n\n─────────────────────────────────────────────\n❯\n─────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ←…\n                                      <text>",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 25,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n<text>\n  <text>\n  <text>\n\n  <text>\n     <text>\n     <text>\n     <text>\n  <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n     <text>\n\n  <text>\n  <text>\n  <text>\n\n✻ Waiting for 1 dynamic workflow to finish ·\n  5 messages hidden (/focus to show)\n\n<text>\n  <text>\n  <text>\n     <text>\n\n✽ Cogitating… (1m 39s · ↓ 5.8k tokens)\n\n───────────────── <proj>─\n❯\n─────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · e…\n                                      <text>",
+  "expected_status": "running",
+  "official_status": "busy"
+ },
+ {
+  "window": 26,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "    <text>\n    <text>\n    <text>\n  <text>\n    <text>\n    <text>\n    <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n✻ Cooked for 10m 46s · done Sunday, 2 Aug,\n  <text>\n  <text>\n\n─────────────────────────────────────────────\n❯\n─────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ←…\n                                      <text>",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 27,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "     <text>\n     <text>\n     <text>\n  <text>\n     <text>\n     <text>\n     <text>\n     <text>\n  <text>\n     <text>\n     <text>\n  <text>\n     <text>\n     <text>\n  <text>\n     <text>\n     <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n✻ Cogitated for 5m 31s · done 4:13 pm · 4\n  messages hidden (/focus to show)\n     <text>\n<text>\n❯\n─────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ←…\n                                      <text>",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 28,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n<text>\n\n\n<text>\n  <text>\n  <text>\n  <text>\n\n\n<text>\n\n<text>\n  <text>\n  <text>\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n<text>\n\n◦ Working (33s • esc to interrupt)\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol high · ~/<proj>",
+  "expected_status": "running",
+  "official_status": null
+ },
+ {
+  "window": 29,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n✻ Crunched for 1m 54s · done Friday 4:19 pm · 4 messages hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 30,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "✻ Baked for 5m 33s · done Thursday, 6 Aug, 3:29 am · 13 messages hidden (/focus to show)\n\n<text>\n\n  <text>\n\n<text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n✻ Sautéed for 49s · done Thursday, 6 Aug, 3:41 am\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 31,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n✻ Crunched for 1m 54s · done Friday 4:19 pm · 4 messages hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 32,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 34,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n     <text>\n  <text>\n     <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n\n  <text>\n\n✻ Cogitated for 5m 7s · done Sunday, 2 Aug, 8:49 pm · 26 messages hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 35,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "<text>\n\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n\n\n<text>\n\n\n<text>\n\n  <text>\n\n  <text>\n\n\n<text>\n\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-luna low · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 36,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n     <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n<text>\n\n\n\n<text>\n\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-luna medium · ~/<proj>                                                                 Goal achieved (1h 44m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 37,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-luna medium · ~",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 38,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n<text>\n\n\n\n<text>\n\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 39,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "<text>\n  <text>\n    <text>\n    <text>\n        <text>\n    <text>\n\n<text>\n  <text>\n    <text>\n    <text>\n        <text>\n    <text>\n\n<text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n<text>\n  <text>\n    <text>\n    <text>\n            <text>\n    <text>\n\n<text>\n  <text>\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n    <text>\n\n• Working (4m 19s • esc to interrupt) · 1 background terminal running · /ps to view · /stop to close\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-luna medium · ~/<proj>                                                                    Goal achieved (4h 34m)",
+  "expected_status": "running",
+  "official_status": null
+ },
+ {
+  "window": 40,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n\n<text>\n\n\n\n<text>\n\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>                                                                     Goal achieved (53m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 41,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "      <text>\n      <text>\n      <text>\n      <text>\n      <text>\n      <text>\n\n  <text>\n      <text>\n      <text>\n        <text>\n\n      <text>\n\n  <text>\n      <text>\n      <text>\n\n  <text>\n      <text>\n          <text>\n          <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.4-mini medium · ~/<proj>                                             Goal achieved (23m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 42,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "  <text>\n\n  <text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 43,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n    <text>\n    <text>\n    <text>\n\n✻ Crunched for 5m 48s · done 2:32 am · 11 messages hidden (/focus to show)\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 44,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 46,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 48,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>                                                                             Goal achieved (1h 25m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 49,
+  "kind": "Claude",
+  "command": "claude",
+  "capture_tail": "  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n    <text>\n\n✻ Cooked for 13m 14s · done Monday, 17 Aug, 11:51 am · 10 messages hidden (/focus to show)\n\n● Background command \"<name>\" was stopped\n\n● Background command \"<name>\" failed with exit code 144\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n❯\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents                                                                                                focus",
+  "expected_status": "idle",
+  "official_status": "idle"
+ },
+ {
+  "window": 50,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "<text>\n\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n<text>\n\n\n\n<text>\n\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>                                                                          Goal achieved (53m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 51,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n    <text>\n\n  <text>\n    <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n<text>\n\n\n\n<text>\n\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol xhigh · ~/<proj>                                                                             Goal achieved (1h 27m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 62,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n   <text>\n  ━━━━━━━━━━━━━━  ━━━━━━━━━━  ━━━━━━━━━━  ━━━━━━━━━━━━━  ━━━━━━━━━━━━\n   <text>\n  ──────────────  ──────────  ──────────  ─────────────  ────────────\n   <text>\n  ──────────────  ──────────  ──────────  ─────────────  ────────────\n   <text>\n  ──────────────  ──────────  ──────────  ─────────────  ────────────\n   <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol high · ~/<proj>                                            Goal achieved (21m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 93,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "\n   <text>\n  ━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━\n   <text>\n  ────────────────  ────────────────  ─────────────────  ────────────────  ────────────────  ────────────────\n   <text>\n  ────────────────  ────────────────  ─────────────────  ────────────────  ────────────────  ────────────────\n   <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol high · ~/<proj>                                      Goal achieved (43m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 94,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "  ─────────────────────────────────────────────  ──────────────────────  ──────────────────────  ──────────────────────  ───────────────────────────────────\n   <text>\n\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n  <text>\n\n  <text>\n\n  <text>\n  <text>\n  <text>\n\n• Tip: run /status to see session details.\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol high · ~/<proj>                                    Goal achieved (26m)",
+  "expected_status": "idle",
+  "official_status": null
+ },
+ {
+  "window": 95,
+  "kind": "Codex",
+  "command": "node",
+  "capture_tail": "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n  <text>\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n<text>\n\n  <text>\n\n  <text>\n\n  <text>\n\n\n<text>\n\n\n\n<text>\n\n\n\n› Ask Codex to do anything\n\n  gpt-5.6-sol high · ~/<proj>",
+  "expected_status": "idle",
+  "official_status": null
+ }
+]

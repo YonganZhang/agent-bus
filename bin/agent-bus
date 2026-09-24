@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve the repository root through symlinks (bin/secretary-bus -> agent-bus,
+# or a symlink placed somewhere on PATH).
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+PY="${PYTHON:-python3}"
+BRIDGE="$ROOT/scripts/cli_bridge.py"
+SUPERVISOR="$ROOT/scripts/supervisor.py"
+CODEX_APP="$ROOT/scripts/codex_app.py"
+EVENT_LEDGER="$ROOT/scripts/event_ledger.py"
+LEADER="$ROOT/scripts/leader.py"
+PROVIDER_STATE="$ROOT/scripts/provider_state.py"
+LEADER_DAEMON="$ROOT/scripts/leader_daemon.py"
+CARDS_CONTROL="$ROOT/scripts/cards_control.py"
+RECOVERY="$ROOT/scripts/secretary_recovery.py"
+WINDOW_TRANSITION="$ROOT/scripts/window_transition.py"
+
+usage() {
+  cat <<'EOF'
+agent-bus — supervise Claude Code / Codex CLI sessions in tmux
+(installed alias: secretary-bus; every command below works with either name)
+
+Usage:
+  agent-bus <command> [args...]
+
+Codex app-server workers:
+  codex --no-mcp <command>                         Start app-server with configured MCP servers disabled
+  codex list                                      List Codex Desktop/app threads
+  codex start --name "NAME" --repo /path --task "English task" --wait [--fail-on-error] [--shared-home]
+                                                  --wait is required (the command owns app-server);
+                                                  workers use isolated CODEX_HOME ~/.codex-homes/app-worker
+  codex read <thread-id> [--turns]
+  codex status <thread-id>
+  codex wait <thread-id>
+  codex watch <thread-id>
+  codex doctor <thread-id>|--run-id ID|--run-dir DIR
+  codex name <thread-id> "NAME"
+  codex steer <thread-id> --task "English guidance"
+  codex interrupt <thread-id>
+  codex diff <thread-id> [--repo /path]
+  codex archive <thread-id> [--unarchive]
+  codex dashboard [--json [--full] | --html]
+  dashboard                                      Alias for codex dashboard
+
+Flat tmux / dialogue bus:
+  tmux-list | targets | register | send          Send commands to any registered Claude/Codex tmux pane
+  targets --prune [--yes]                        Remove registrations whose pane no longer exists
+  send --target NAME --text-file FILE --enter --yes  Verified AI dispatch without shell-quoting a long prompt
+  send --target NAME --text "..." --enter --yes --queue  Explicit follow-up/queue for a busy AI
+
+AI Session Cards organization:
+  cards list [--json]                            List Cards panes, favorites, and categories
+  cards favorite|unfavorite SELECTOR             Change one pane's favorite state
+  cards alias SELECTOR "NAME"                    Set a pane's Cards display alias
+  cards category SELECTOR CATEGORY [--create]    Assign one pane to a category
+  cards group CATEGORY SELECTOR... [--create]    Atomically group leader and workers
+  cards uncategorize SELECTOR                    Clear one pane's category
+
+Tmux + Cards disaster recovery:
+  window prepare '#23' --to codex                Write a bounded cross-provider handoff plan
+  window launch PLAN --yes                       Start target while retaining source window
+  window verify PLAN                            Verify exact target session and handoff receipt
+  window promote PLAN --yes                      Keep window number; retain old pane as backup
+  recovery snapshot                              Refresh atomic last-known-good state
+  recovery plan [--snapshot FILE]                Read-only missing-session plan
+  recovery cards-manifest [--snapshot FILE]      Show saved names, IDs, favorites, and category members
+  recovery restore --limit 5 --yes               Restore a safe trial batch
+  recovery restore --all --yes                   Restore all remaining resumable sessions
+  recovery restore|relaunch --target N --yes     Only one window (number, %pane, name, or Cards alias)
+  recovery relaunch --all --yes                  Re-launch stale shells in place (window alive, AI gone)
+  recovery auto [--yes]                          Pinned-baseline restore → relaunch → reconcile → verify (dry-run default)
+  recovery plan|verify --summary                 One line per window
+  recovery reconcile-cards --yes                 Replay snapshot categories, favorites, and aliases
+  recovery verify [--snapshot FILE]              Compare snapshot identities with live panes
+
+Provider-neutral leader sessions:
+  leader create --leader NAME --worker NAME --objective "..."
+  leader assign ID --worker NAME --repo /path --task "..." [--yes]
+  leader tick ID | leader watch ID [--timeout 120]
+  leader status ID | leader doctor ID
+  leader steer ID --worker NAME --text "..." [--yes]
+  leader collect ID --worker NAME
+  leader verify ID --worker NAME --evidence "independent acceptance"
+  leader close ID --status completed --evidence "acceptance check passed"
+  leader discover --json                         Discover all tmux panes
+  leader config --trusted-owner true             Enable durable owner mode
+  leader keys|approve|interrupt|restart|kill ... Maximum tmux control; inspect --help
+  provider-state TARGET [--pretty]               Exact/inferred provider state
+  leaderd start ID                               Background event wake-up loop
+  leaderd status ID | leaderd stop ID
+
+Tmux bridge (direct input to one registered tmux pane):
+  tmux-list | targets | register | send -> cli_bridge.py
+
+Supervisor jobs:
+  start | collect | continue | show | list | prune -> supervisor.py
+
+Event ledger:
+  event-jobs [--pane PANE] [--active-only]       List unified jobs
+  event-status <job-id>                          Show one unified job
+  event-log [--after N] [--pane PANE]            Show unified events
+  event-watch [--job-id ID] [--until-terminal]   Follow unified events
+  event-prune [--days 30] [--yes]                Move old unified jobs/events to _legacy (dry-run default)
+  event-reap [--yes] [--json]                    Close zombie active jobs whose pane/process is provably gone (dry-run default)
+
+Examples:
+  agent-bus codex start --name "frontend-dashboard-fix" --repo /path --task "Fix the dashboard layout. Keep changes minimal." --wait
+  agent-bus codex status <thread-id>
+  agent-bus codex wait <thread-id>
+  agent-bus codex doctor <thread-id>
+  agent-bus codex doctor --run-dir ~/.codex/agent-bus/codex-runs/<run-id> --local
+  agent-bus codex steer <thread-id> --task "Focus only on the failing test."
+  agent-bus codex interrupt <thread-id>
+  agent-bus register --name demo-claude --pane work:0.0 --expected-command claude
+  agent-bus start --target demo-claude --repo /path/to/repo --task "Investigate and fix X" --yes
+  agent-bus collect <job-id>
+  agent-bus continue <job-id> --text "Please add tests" --yes
+  agent-bus event-status <job-id>
+  agent-bus cards favorite "my-project"
+  agent-bus cards category "my-project" "Research"
+  agent-bus cards group "cards-polish" "%12" "%13" "%14" --create
+  agent-bus cards category-delete "cards-polish"
+  agent-bus leader create --leader lead-ai --worker worker-a --worker worker-b --objective "Ship and verify X"
+  agent-bus leader watch <leader-id> --timeout 120 --json
+EOF
+}
+
+if [[ $# -eq 0 || "${1:-}" == "-h" || "${1:-}" == "--help" || "${1:-}" == "help" ]]; then
+  usage
+  exit 0
+fi
+
+cmd="$1"
+shift
+
+retired_codexd() {
+  cat >&2 <<'EOF'
+The persistent Codex daemon (codexd) has been retired.
+Use instead:
+  agent-bus codex start --name "worker" --repo /path --task "..." --wait   one-shot worker, streamed to completion
+  agent-bus leader create ...                                               long-lived supervision / multiple workers
+EOF
+  exit 2
+}
+
+archived_command() {
+  cat >&2 <<'EOF'
+This command belonged to the retired Agent View/workspace-sessions/governor model.
+Current model is flat: use agent-bus targets/register/send or agent-bus codex ...
+EOF
+  exit 2
+}
+
+case "$cmd" in
+  tmux-list|targets|register|send)
+    exec "$PY" "$BRIDGE" "$cmd" "$@"
+    ;;
+  start|collect|continue|show|list|prune)
+    exec "$PY" "$SUPERVISOR" "$cmd" "$@"
+    ;;
+  event-jobs)
+    exec "$PY" "$EVENT_LEDGER" jobs "$@"
+    ;;
+  event-status|job-status)
+    exec "$PY" "$EVENT_LEDGER" status "$@"
+    ;;
+  event-log|events)
+    exec "$PY" "$EVENT_LEDGER" events "$@"
+    ;;
+  event-watch)
+    exec "$PY" "$EVENT_LEDGER" watch "$@"
+    ;;
+  event-prune)
+    exec "$PY" "$EVENT_LEDGER" prune "$@"
+    ;;
+  event-reap)
+    exec "$PY" "$EVENT_LEDGER" reap "$@"
+    ;;
+  leader|lead)
+    exec "$PY" "$LEADER" "$@"
+    ;;
+  provider-state|provider)
+    exec "$PY" "$PROVIDER_STATE" "$@"
+    ;;
+  leaderd|leader-daemon)
+    exec "$PY" "$LEADER_DAEMON" "$@"
+    ;;
+  cards|card)
+    exec "$PY" "$CARDS_CONTROL" "$@"
+    ;;
+  recovery|recover)
+    exec "$PY" "$RECOVERY" "$@"
+    ;;
+  window)
+    exec "$PY" "$WINDOW_TRANSITION" "$@"
+    ;;
+  codex)
+    exec "$PY" "$CODEX_APP" "$@"
+    ;;
+  codexd|codex-daemon)
+    retired_codexd
+    ;;
+  dashboard)
+    exec "$PY" "$CODEX_APP" dashboard "$@"
+    ;;
+  agents|agent-dashboard|claude-dashboard|govern|governor|agent-governor|webterm|agent-webterm|codex-webterm|codex-web|codex-tty|favorites|dispatch-agent|kill-agent|dispatch-by-topic|relay|agent-relay|claude-relay|bootstrap-agents)
+    archived_command
+    ;;
+  bridge)
+    exec "$PY" "$BRIDGE" "$@"
+    ;;
+  supervisor|job|jobs)
+    exec "$PY" "$SUPERVISOR" "$@"
+    ;;
+  codex-app|app)
+    exec "$PY" "$CODEX_APP" "$@"
+    ;;
+  *)
+    echo "unknown agent-bus command: $cmd" >&2
+    echo >&2
+    usage >&2
+    exit 2
+    ;;
+esac

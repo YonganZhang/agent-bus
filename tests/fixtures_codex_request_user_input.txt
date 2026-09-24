@@ -1,0 +1,50 @@
+╭─────────────────────────────────────────────╮
+│ >_ OpenAI Codex (v0.156.1)                  │
+│                                             │
+│ model:       GPT-6-Astra   /model to change │
+│ directory:   ~/tmp/demo-askq                │
+│ permissions: YOLO mode                      │
+╰─────────────────────────────────────────────╯
+
+  Tip: This is GPT-6, a new generation of intelligence. Astra is state-of-the-art in coding, computer use, science, and professional work. Give it a hard
+  problem, a half-formed idea, or anything you've been meaning to build. See where it takes you.
+
+• Model changed to gpt-6-astra medium for Plan mode.
+
+
+› First use the request_user_input tool to ask me: 'Do you want to proceed with the database migration?' with options 'Yes, migrate now' and 'No, wait until
+  Friday'. Do not read any files.
+
+
+
+  Question 1/1 (1 unanswered)
+  Do you want to proceed with the database migration?
+
+  › 1. Yes, migrate now       Proceed with the database migration now.
+    2. No, wait until Friday  Defer the database migration until Friday.
+    3. None of the above      Optionally, add details in notes (tab).
+
+  tab to add notes | enter to submit answer | esc to interrupt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

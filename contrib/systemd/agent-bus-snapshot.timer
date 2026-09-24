@@ -1,0 +1,11 @@
+[Unit]
+Description=Snapshot the Agent Bus recovery state every two minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=15s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+# One-shot restore after boot or a tmux-server loss. Conservative: it only
+# restores when the live session is far smaller than the last good snapshot,
+# and it refuses to snapshot a run that did not fully verify.
+[Unit]
+Description=Restore Agent Bus windows from the last-known-good snapshot after boot
+After=agent-bus-tmux.service agent-bus-snapshot.timer
+Wants=agent-bus-tmux.service
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/agent-bus/contrib/boot/auto-restore
+TimeoutStartSec=2400
+RemainAfterExit=no
+
+[Install]
+WantedBy=default.target

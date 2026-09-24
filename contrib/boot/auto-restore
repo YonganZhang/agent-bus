@@ -1,0 +1,346 @@
+#!/usr/bin/env bash
+# Restore the Agent Bus tmux session from the last-known-good snapshot after a
+# reboot or a tmux-server loss. Deliberately conservative: it only fires when the
+# live session is far smaller than the snapshot, and it only touches windows that
+# this run itself created.
+#
+# Environment:
+#   SECRETARY_TMUX_SESSION   tmux session (default secretary_web)
+#   AGENT_BUS_SNAPSHOT_DIR   snapshot directory (default $AGENT_BUS_DEFAULT_CODEX_HOME/tmux-snapshots,
+#                            i.e. ~/.codex/tmux-snapshots)
+#   AUTO_RESTORE_SETTLE      seconds to wait before acting (default 150)
+#   AUTO_RESTORE_RATIO       restore only when live panes < ratio * recoverable (default 0.5)
+set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)"
+SESSION="${SECRETARY_TMUX_SESSION:-secretary_web}"
+BUS="$REPO_ROOT/bin/agent-bus"
+ENSURE="$REPO_ROOT/contrib/boot/ensure-tmux-session"
+# 对话框识别与作答走 Agent Bus 共享的 scripts/dialogs.py。
+BUS_SCRIPTS="$REPO_ROOT/scripts"
+BUS_PY="${PYTHON:-python3}"
+SNAP_DIR="${AGENT_BUS_SNAPSHOT_DIR:-${AGENT_BUS_DEFAULT_CODEX_HOME:-$HOME/.codex}/tmux-snapshots}"
+mkdir -p "$SNAP_DIR"
+SNAP_SRC="$SNAP_DIR/latest-good.json"
+SNAP=""   # 本次运行固定下来的基线副本(pin-baseline),restore/relaunch/verify 三步都用它
+LOG="$SNAP_DIR/auto-restore.log"
+LOCK="$SNAP_DIR/.auto-restore.lock"
+SETTLE_SECONDS="${AUTO_RESTORE_SETTLE:-150}"
+TRIGGER_RATIO="${AUTO_RESTORE_RATIO:-0.5}"
+
+DRY_RUN=0; FORCE=0
+for a in "$@"; do
+  case "$a" in
+    --dry-run) DRY_RUN=1 ;;
+    --force)   FORCE=1 ;;
+    --now)     SETTLE_SECONDS=0 ;;
+  esac
+done
+
+log() { printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*" | tee -a "$LOG" >&2; }
+
+exec 9>"$LOCK" || exit 0
+# 等几秒而不是 -n: 定时快照会瞬间探测这把锁(只探测、立刻释放),-n 可能恰好撞上而误退出。
+# 持锁期间定时快照只写 latest-observed,不会把"恢复到一半"的现场升级成 latest-good。
+flock -w 10 9 || { log "another auto-restore holds the lock; exiting"; exit 0; }
+
+[ "$SETTLE_SECONDS" -gt 0 ] && sleep "$SETTLE_SECONDS"
+
+for _ in $(seq 1 60); do
+  tmux has-session -t "$SESSION" 2>/dev/null && break
+  sleep 5
+done
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  log "FAIL: session $SESSION never appeared"; exit 1
+fi
+
+[ -r "$SNAP_SRC" ] || { log "FAIL: snapshot unreadable: $SNAP_SRC"; exit 1; }
+# 固定一份基线副本: 恢复要跑好几分钟,三步各读各的 latest-good 时,中途被换掉的基线会让
+# 没救回的会话号从后面几步的对照里消失,最终 verify 反而是绿的。
+if [ "$DRY_RUN" -eq 1 ]; then
+  SNAP="$SNAP_SRC"
+else
+  SNAP="$("$BUS" recovery pin-baseline --snapshot "$SNAP_SRC" --label auto-restore --path-only 2>>"$LOG")" \
+    || { log "FAIL: cannot pin recovery baseline from $SNAP_SRC"; exit 1; }
+  log "pinned baseline: $SNAP"
+fi
+
+read -r SNAP_RECOVERABLE SNAP_HEALTH SNAP_AT <<<"$(python3 - "$SNAP" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1]))
+print(d.get("recoverable_pane_count",0),
+      (d.get("health") or {}).get("status","unknown"),
+      (d.get("captured_at") or "")[:19])
+PY
+)"
+
+LIVE=$(tmux list-panes -s -t "$SESSION" 2>/dev/null | wc -l)
+THRESHOLD=$(python3 -c "print(int(float('$SNAP_RECOVERABLE')*float('$TRIGGER_RATIO')))")
+
+log "snapshot: recoverable=$SNAP_RECOVERABLE health=$SNAP_HEALTH captured=$SNAP_AT | live=$LIVE | threshold=$THRESHOLD"
+
+if [ "$SNAP_HEALTH" != "good" ] && [ "$FORCE" -ne 1 ]; then
+  log "SKIP: snapshot health is '$SNAP_HEALTH', not restoring from it"; exit 0
+fi
+SKIP_RESTORE=0
+if [ "$LIVE" -ge "$THRESHOLD" ] && [ "$FORCE" -ne 1 ]; then
+  # 窗口数没塌 => 不需要重建窗口。但「窗口还在、里面的 AI 已经退了」不会让这个数字变小,
+  # 所以这里只跳过 restore,后面照样跑 relaunch;否则"窗口都在、AI 全退了"的现场永远发现不了。
+  log "SKIP restore: live panes ($LIVE) >= threshold ($THRESHOLD); still checking stale shells"
+  SKIP_RESTORE=1
+fi
+if [ "$DRY_RUN" -eq 1 ]; then
+  log "DRY-RUN: skip_restore=$SKIP_RESTORE; would restore ~$((SNAP_RECOVERABLE-LIVE)) sessions"
+  exit 0
+fi
+
+# 只对「确实还有 AI 进程活着、且屏幕当前就停在对话框」的 pane 发按键。
+# 会话已经退回 bash 时,屏幕尾部可能还残留上一屏的对话框文字;这时发 `1` / `2` 会被当成
+# shell 命令执行。命令发出 != 目标达成,所以这里三道判据缺一不可。
+pane_has_live_ai() {
+  local tgt="$1" root gen pids p comm
+  root=$(tmux display-message -p -t "$tgt" "#{pane_pid}" 2>/dev/null) || return 1
+  [ -n "$root" ] || return 1
+  pids="$root"; gen="$root"
+  for _ in 1 2 3; do
+    gen=$(pgrep -P "$(echo "$gen" | tr ' ' ',' | sed 's/,$//')" 2>/dev/null | tr '\n' ' ')
+    [ -z "$gen" ] && break
+    pids="$pids $gen"
+  done
+  for p in $pids; do
+    comm=$(cat "/proc/$p/comm" 2>/dev/null) || continue
+    case "$comm" in
+      claude|codex) return 0 ;;
+      ai-session-shel*) return 0 ;;
+      # codex 有时以 node 前台出现,但普通 node 任务也存在。按 NUL 分隔逐个 token 认
+      # 可执行名 —— 子串 grep 会把路径里带 .codex 的无关进程也放行。
+      node) is_codex_proc "$p" && return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# 只认可执行位置(argv[0],或 node/npm 的 entry script),不扫描全部参数:
+# `node -e '...' codex` 这种普通命令不该被当成 Codex。
+is_codex_proc() {
+  local pid="$1" tok i=0
+  while IFS= read -r -d '' tok; do
+    i=$((i+1))
+    case "$i:${tok##*/}" in
+      1:codex) return 0 ;;
+      2:codex|2:codex.js) return 0 ;;
+    esac
+    [ "$i" -ge 2 ] && break
+  done < "/proc/$pid/cmdline" 2>/dev/null
+  return 1
+}
+
+pane_is_at_dialog() {
+  local tgt="$1" last
+  # 末行还是 shell 提示符 => 屏幕上的对话框只是历史残影,不是当前状态。
+  last=$(tmux capture-pane -p -t "$tgt" 2>/dev/null | grep -v '^$' | tail -1)
+  case "$last" in *'$' | *'$ ' | *'# ' | *'> ') return 1 ;; esac
+  tmux capture-pane -p -t "$tgt" 2>/dev/null | grep -v '^$' | tail -6 \
+    | grep -qE "Skip until next version|Yes, I trust this folder|Resume paused goal"
+}
+
+# 启动对话框交给共享的 dialogs.py: 先读懂屏幕上的选项,逐格移动高亮、每步重读屏幕,只在高亮
+# 停在要选的那一项时才按 Enter。不能盲发数字: Claude 2.1.280 起信任框不带编号、默认高亮
+# "No, exit",发 "1"+Enter 等于直接选了退出。读不到对话框、或者是要用户回答的工作提问,就一个键都不发。
+# 默认只处理目录信任(trust)与"设为 auto 模式"邀请(mode-offer);工具权限、hooks 审阅、plan 确认
+# 等其它权限类对话框,只有自动审批开关打开(AGENT_BUS_AUTO_APPROVE=1 或
+# `agent-bus leader config --auto-approve-permissions true`)时才处理。
+# 第二个参数给了编号时(Codex 的两种非权限启动提示),选的是"该编号那一项",同样逐格核对后才回车。
+# 每次作答都写账本事件 boot_prompt_auto_answered。
+approve_dialog() {
+  local tgt="$1" number="${2:-}" out rc
+  out=$("$BUS_PY" - "$tgt" "$BUS_SCRIPTS" "$number" 2>&1 <<'PY'
+import subprocess, sys
+pane, scripts, number = sys.argv[1], sys.argv[2], sys.argv[3]
+sys.path.insert(0, scripts)
+import cli_bridge
+import dialogs
+import event_ledger
+
+BOOT_KINDS = {"trust", "mode-offer"}  # answered at boot even with auto-approve off
+
+
+def record(detail):
+    try:
+        event_ledger.append_event(
+            "boot_prompt_auto_answered", pane=pane, source="auto-restore",
+            message=f"{detail.get('kind', '')}: {detail.get('answer', '')}"[:300], data=detail,
+        )
+    except Exception as exc:  # the answer already happened; report, do not hide it
+        print(f"WARN: could not record ledger event: {exc}")
+
+def tmux(args):
+    return subprocess.run(["tmux", *args], capture_output=True, text=True, timeout=10, check=True).stdout
+
+def capture():
+    return tmux(["capture-pane", "-p", "-t", pane])
+
+def send(key):
+    tmux(["send-keys", "-t", pane, key])
+
+try:
+    if number:
+        screen = capture()
+        seen = dialogs.read_dialog(screen)
+        if not any(text in screen for text in ("Skip until next version", "Resume paused goal")):
+            print("the Codex startup prompt is gone; nothing sent")
+            sys.exit(3)
+        if seen is None or not seen.numbered or int(number) not in seen.numbers:
+            print(f"no numbered dialog with option {number}; nothing sent")
+            sys.exit(3)
+        option = seen.options[seen.numbers.index(int(number))]
+        dialogs.drive(option, capture=capture, send=send, pane_id=pane, tmux=tmux)
+        record({"kind": seen.kind, "question": seen.headline, "answer": option, "option_number": int(number)})
+        print(f"chose option {number} {option!r}: {seen.headline!r}")
+        sys.exit(0)
+    seen = dialogs.read_dialog(capture())
+    if seen is not None and seen.kind not in BOOT_KINDS and not cli_bridge.auto_approve_enabled():
+        print(f"left for the user ({seen.kind}, auto-approve is off): {seen.headline!r}; nothing sent")
+        sys.exit(3)
+    result = dialogs.auto_approve(capture=capture, send=send, pane_id=pane, tmux=tmux)
+    if result is None:
+        seen = dialogs.read_dialog(capture())
+        if seen is None:
+            print("no dialog on screen; nothing sent")
+        else:
+            print(f"left for the user ({seen.kind}): {seen.headline!r}; nothing sent")
+        sys.exit(3)
+except dialogs.PaneBusy as exc:
+    print(f"busy: {exc}")
+    sys.exit(4)
+except (ValueError, RuntimeError, subprocess.SubprocessError, OSError) as exc:
+    print(f"FAILED {type(exc).__name__}: {exc}")
+    sys.exit(5)
+record(dict(result))
+print(f"answered {result['kind']} with {result['answer']!r}: {result['question']!r}")
+PY
+)
+  rc=$?
+  log "dialog on $tgt: rc=$rc ${out//$'\n'/ | }"
+  return "$rc"
+}
+
+clear_dialogs() {
+  local targets="$1" label="$2" tgt view key round stuck=0 frozen="" pid
+  [ -z "$targets" ] && return 0
+  # 立刻把 session:window.pane 冻结成 pane id: 等待期间窗口号可能被别的 pane 复用,
+  # 按号发按键就会打到无关窗口去。tmux 的 -t 接受 %N,后面全程用它。
+  while read -r tgt; do
+    [ -z "$tgt" ] && continue
+    pid=$(tmux display-message -p -t "$tgt" "#{pane_id}" 2>/dev/null) || continue
+    [ -n "$pid" ] && frozen="${frozen}${pid}"$'\n'
+  done <<<"$targets"
+  [ -z "$frozen" ] && return 0
+  targets="$frozen"
+  sleep 30
+  for round in 1 2; do
+    while read -r tgt; do
+      [ -z "$tgt" ] && continue
+      pane_has_live_ai "$tgt" || { log "skip dialog on $tgt: no live AI process"; continue; }
+      view=$(tmux capture-pane -p -t "$tgt" 2>/dev/null | grep -v '^$' | tail -6)
+      key=""
+      # Codex 带编号的两种非权限启动提示: 选第 2 项(保持原行为),但同样逐格核对。
+      case "$view" in
+        *"Skip until next version"*)   key=2 ;;
+        *"Resume paused goal"*)        key=2 ;;
+      esac
+      approve_dialog "$tgt" "$key"
+    done <<<"$targets"
+    sleep 20
+  done
+  while read -r tgt; do
+    [ -z "$tgt" ] && continue
+    pane_is_at_dialog "$tgt" && stuck=$((stuck+1))
+  done <<<"$targets"
+  log "$label dialogs cleared; still stuck: $stuck"
+}
+
+json_targets() {
+  printf '%s' "$1" | python3 -c "
+import json,sys
+try: print('\n'.join(json.loads(sys.stdin.read()).get('targets',[])))
+except Exception: pass
+" 2>/dev/null
+}
+
+EXIT_CODE=0
+
+if [ "$SKIP_RESTORE" -ne 1 ]; then
+  log "restoring: live=$LIVE well below snapshot=$SNAP_RECOVERABLE"
+  # --retries: Codex 的本机 sqlite(state/logs)是全机器单例,一次拉起几十个会 `database
+  # is locked` 直接退出。重试一两轮通常就能抢到锁,所以这里绝不能一轮定生死。
+  OUT=$("$BUS" recovery restore --snapshot "$SNAP" --all --yes --pause-seconds 2 --settle-seconds 10 \
+        --retries 3 --retry-backoff 15 2>&1)
+  printf '%s\n' "$OUT" >>"$LOG"
+  read -r R_OK R_SPAWNED R_VERIFIED <<<"$(printf '%s' "$OUT" | python3 -c "
+import json,sys
+try:
+    d=json.loads(sys.stdin.read())
+    print(d.get('ok'), d.get('spawned',0), d.get('verified',0))
+except Exception:
+    print('parse-error 0 0')
+" 2>/dev/null)"
+  log "restore result: ok=$R_OK spawned=$R_SPAWNED verified=$R_VERIFIED"
+  [ "$R_OK" = "True" ] || EXIT_CODE=1
+  clear_dialogs "$(json_targets "$OUT")" "restore"
+fi
+
+# 窗口还在、里面的 AI 却没起来的(stale-shell): restore 管不到它们(不算 missing),
+# 就地 relaunch 才是对的 —— 不新建窗口,也就保住了 Cards 的分类和收藏。
+RELAUNCH=$("$BUS" recovery relaunch --snapshot "$SNAP" --all --yes --retries 3 --retry-backoff 15 2>&1)
+printf '%s\n' "$RELAUNCH" >>"$LOG"
+read -r L_OK L_DONE <<<"$(printf '%s' "$RELAUNCH" | python3 -c "
+import json,sys
+try:
+    d=json.loads(sys.stdin.read()); print(d.get('ok'), d.get('relaunched',0))
+except Exception:
+    print('parse-error 0')
+" 2>/dev/null)"
+log "relaunch result: ok=$L_OK relaunched=$L_DONE"
+[ "$L_OK" = "True" ] || EXIT_CODE=1
+clear_dialogs "$(json_targets "$RELAUNCH")" "relaunch"
+
+# 最终以独立观测收尾:命令返回 0 不等于窗口真的回来了。还剩空窗口就必须让这次运行变红,
+# 否则 systemd 显示成功而窗口照旧空着,问题就不会被发现。
+FINAL_VERIFY=$("$BUS" recovery verify --snapshot "$SNAP" 2>&1)
+VERIFY_RC=$?
+printf '%s\n' "$FINAL_VERIFY" >>"$LOG"
+read -r V_MISSING V_STALE V_NOID <<<"$(printf '%s' "$FINAL_VERIFY" | python3 -c "
+import json,sys
+try:
+    d=json.loads(sys.stdin.read())
+    print(len(d.get('missing') or []), len(d.get('stale_shells') or []),
+          int((d.get('counts') or {}).get('already-live-key', 0)))
+except Exception:
+    print('-1 -1 -1')
+" 2>/dev/null)"
+# already-live-key = 窗口在、但两边都不知道它该是哪条对话。没法自动救,也不该让这次运行
+# 永远变红,所以只记数字让人看见。
+log "final verify: rc=$VERIFY_RC missing=$V_MISSING stale_shells=$V_STALE unidentified_windows=$V_NOID"
+# verify 自己的整体结论也要算数: Cards 漂移、manifest 错误不会体现在 missing/stale 上,
+# 漏掉它就会在"verify 说失败"的情况下照样拍快照。
+[ "$VERIFY_RC" -eq 0 ] || EXIT_CODE=1
+[ "$V_MISSING" = "0" ] && [ "$V_STALE" = "0" ] || EXIT_CODE=1
+
+# ensure-tmux-session 在 session 丢失时只建一个空 shell 占位窗口(高位号 999、不起 AI)。
+# 恢复跑完就关掉它,免得它留在窗口列表和下一份快照里; 它是唯一窗口或里面有人在用时保留。
+"$ENSURE" --close-placeholder >>"$LOG" 2>&1 \
+  || log "WARN: closing the boot placeholder failed; see ensure-tmux-session output above"
+
+FINAL=$(tmux list-panes -s -t "$SESSION" 2>/dev/null | wc -l)
+log "DONE: live panes now $FINAL (snapshot recoverable $SNAP_RECOVERABLE) exit=$EXIT_CODE"
+if [ "$EXIT_CODE" -eq 0 ]; then
+  # 先放开恢复锁: 持锁时快照只会写 observed,不会刷新 latest-good。
+  flock -u 9
+  "$BUS" recovery snapshot >>"$LOG" 2>&1 || true
+else
+  # 这一轮没能把窗口全部救回来。此时拍快照会把"丢了号"的状态提升成新的
+  # last-known-good,旧 UUID 从此再也找不回来 —— 宁可保住上一份好基准。
+  log "skip snapshot: this run ended with exit=$EXIT_CODE; keeping the previous last-known-good"
+fi
+exit "$EXIT_CODE"

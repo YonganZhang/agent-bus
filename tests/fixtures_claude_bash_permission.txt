@@ -1,0 +1,50 @@
+
+ ▐▛███▛█   Claude Code v2.1.280
+▝▜██████▀  Opus 5.5 (1M context) with xhigh effort
+  ▝▝ ▝▝    ~/tmp/demo/perm-probe
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+
+❯ 权限测试：请用 Bash 工具执行 echo agent-bus-perm-ok > perm.txt，然后只回复 done。
+
+  Writing permission test marker to perm.txt
+  ⎿  $ echo agent-bus-perm-ok > perm.txt
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Bash command
+
+   echo agent-bus-perm-ok > perm.txt
+   Write permission test marker to perm.txt
+
+ Do you want to proceed?
+ ❯ 1. Yes
+   2. Yes, and always allow access to /work/demo-project from this project
+   3. No
+
+ Esc to cancel · Tab to amend
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

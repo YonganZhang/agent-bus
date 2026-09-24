@@ -1,0 +1,7 @@
+[Unit]
+Description=Snapshot the Agent Bus tmux session and Cards metadata (last-known-good)
+After=agent-bus-tmux.service
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/agent-bus/bin/agent-bus recovery snapshot

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -u
+
+runtime_tmpdir="${AI_SESSION_TMPDIR:-${HOME}/.claude/tmp}"
+if ! mkdir -p -- "$runtime_tmpdir"; then
+  printf 'ai-session-shell: failed to create runtime tmpdir: %s\n' "$runtime_tmpdir" >&2
+  exit 1
+fi
+if ! chmod 700 -- "$runtime_tmpdir"; then
+  printf 'ai-session-shell: failed to secure runtime tmpdir: %s\n' "$runtime_tmpdir" >&2
+  exit 1
+fi
+export TMPDIR="$runtime_tmpdir"
+
+if (( $# == 0 )); then
+  exec /bin/bash -l
+fi
+
+resume_display=$(printf '%q ' "$@")
+"$@"
+status=$?
+
+printf '\n[AI session exited with status %d]\n' "$status"
+printf '[Shell is ready. Resume with:] %s\n\n' "$resume_display"
+exec /bin/bash -l

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# 保证 Agent Bus 的 tmux session(默认 secretary_web)存在。session 丢了(开机、tmux server
+# 被 OOM 杀掉)时只建一个空 shell 占位窗口 —— 不起任何 AI,真正的窗口由 contrib/boot/auto-restore
+# 或 `agent-bus recovery restore` 按快照里的原窗口号重建。
+#
+# 为什么占位窗口不在 0 号、也不起 AI:
+#   如果在 0 号窗口起一个全新 AI 会话,restore 按原窗口号重建时 0 号已被占,原 0 号窗口就被挪到
+#   "最大号+1"(窗口号漂移);那个全新会话还带着新会话号,下一次快照会把它当成可恢复会话写进基线。
+#   所以这里只建空 shell(快照认作 shell-only、不可恢复,不进恢复基线),并挪到远离真实窗口号的
+#   高位号(默认 999),restore 需要的原号全都空着。
+#
+# 用法:
+#   ensure-tmux-session                      常驻(见 contrib/systemd/agent-bus-tmux.service)
+#   ensure-tmux-session --close-placeholder  恢复完成后关掉占位窗口(auto-restore 调用);
+#                                            只关带 @boot_placeholder=1、里面没有任何子进程的
+#                                            空 shell,且 session 里还有别的窗口时才关。
+#
+# 环境变量:
+#   SECRETARY_TMUX_SESSION        session 名(默认 secretary_web)
+#   SECRETARY_PLACEHOLDER_INDEX   占位窗口号(默认 999)
+#   AGENT_BUS_ENV_FILES           启动前 source 的环境文件,冒号分隔(例如代理配置);
+#                                 新 tmux server 和它建的每个 pane 都会继承这些变量
+#   TMUX_BIN                      tmux 可执行文件(默认 PATH 里的 tmux)
+set -euo pipefail
+
+TMUX_BIN="${TMUX_BIN:-tmux}"
+IFS=':' read -r -a _env_files <<<"${AGENT_BUS_ENV_FILES:-}"
+for _f in "${_env_files[@]}"; do
+  if [[ -n "$_f" && -f "$_f" ]]; then
+    # shellcheck disable=SC1090
+    source "$_f"
+  fi
+done
+
+session="${SECRETARY_TMUX_SESSION:-secretary_web}"
+placeholder_name=boot-placeholder
+placeholder_index="${SECRETARY_PLACEHOLDER_INDEX:-999}"
+
+close_placeholder() {
+  local pane flag cmd pid others kids closed=0
+  "$TMUX_BIN" has-session -t "$session" 2>/dev/null || { echo "no session $session" >&2; return 1; }
+  while IFS=$'\t' read -r pane flag cmd pid; do
+    [[ "$flag" == "1" ]] || continue
+    others=$("$TMUX_BIN" list-panes -s -t "$session" -F '#{@boot_placeholder}' | grep -vc '^1$' || true)
+    if [[ "$others" -eq 0 ]]; then
+      # 关掉它 session 就没了,systemd 会马上再建一个占位 —— 白折腾,留着。
+      echo "keep placeholder $pane: it is the only pane in $session" >&2
+      continue
+    fi
+    case "$cmd" in
+      bash|sh|zsh|dash) ;;
+      *) echo "keep placeholder $pane: foreground is '$cmd', someone is using it" >&2; continue ;;
+    esac
+    kids=$(pgrep -P "$pid" 2>/dev/null || true)
+    if [[ -n "$kids" ]]; then
+      echo "keep placeholder $pane: shell has child processes" >&2
+      continue
+    fi
+    "$TMUX_BIN" kill-pane -t "$pane"
+    echo "closed placeholder $pane"
+    closed=$((closed+1))
+  done < <("$TMUX_BIN" list-panes -s -t "$session" \
+             -F $'#{pane_id}\t#{@boot_placeholder}\t#{pane_current_command}\t#{pane_pid}')
+  [[ "$closed" -gt 0 ]] || echo "no idle placeholder closed" >&2
+  return 0
+}
+
+if [[ "${1:-}" == "--close-placeholder" ]]; then
+  close_placeholder
+  exit $?
+fi
+
+if ! "$TMUX_BIN" has-session -t "$session" 2>/dev/null; then
+  pane=$("$TMUX_BIN" new-session -d -P -F '#{pane_id}' -s "$session" -n "$placeholder_name" -c "$HOME")
+  "$TMUX_BIN" set-option -p -t "$pane" @boot_placeholder 1
+  # new-session 只能建在 base-index(0 号)。立刻挪走,把 0..N 全留给 restore 按原号重建。
+  if ! "$TMUX_BIN" move-window -s "$pane" -t "$session:$placeholder_index"; then
+    echo "WARN: cannot move placeholder $pane to $session:$placeholder_index; it still occupies a low window index" >&2
+  fi
+fi
+
+# Stay alive so systemd can detect a killed tmux server. If OOM or another
+# failure removes the session, exit non-zero and let Restart=always rebuild it.
+while "$TMUX_BIN" has-session -t "$session" 2>/dev/null; do
+  sleep 5
+done
+
+echo "tmux session disappeared: $session" >&2
+exit 1
