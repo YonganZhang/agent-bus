@@ -720,7 +720,7 @@ const __out = {
         self.assertIn('event.target.closest("textarea, input, select, [contenteditable]")', wiring)
 
     def latest_js(self, body: str) -> object:
-        latest = snippet(self.source, "    async function loadTerminalLatest(paneId", "\n    // 往上翻到顶")
+        latest = snippet(self.source, "    function loadTerminalLatest(paneId", "\n    // 往上翻到顶")
         anchor = snippet(self.source, "    function anchorTerminalBottom()", "\n    // 回到最新")
         merge = snippet(self.source, "    const TERMINAL_TAIL_EXTRA = 150;", "\n    // ---- 卡片内 tmux 视图: tmux 顶部之上接对话记录")
         script = (f"""
@@ -728,10 +728,11 @@ const wrap = {{ scrollTop: 400, scrollHeight: 1000, clientHeight: 600, writes: 0
 const wrapProxy = new Proxy(wrap, {{ set(t, k, v) {{ if (k === "scrollTop") t.writes += 1; t[k] = v; return true; }} }});
 const document = {{ querySelector: () => wrapProxy }};
 const state = {{ terminalOpen: true, selected: "%9", terminalLoadingOlder: false, terminalFollowLatest: true,
-  terminalCaptureSeq: 0, terminalAbortController: null, terminalPagesByPane: new Map(), terminalUnchangedPolls: 0 }};
+  terminalCaptureSeq: 0, terminalAbortController: null, terminalPagesByPane: new Map(), terminalUnchangedPolls: 0,
+  terminalLatestInFlight: null }};
 const TERMINAL_PAGE_LINES = 600;
-let renders = 0, fills = 0, next = null;
-const renderTerminalPage = () => {{ renders += 1; wrap.scrollHeight += 20; }};
+let renders = 0, fills = 0, next = null, renderThrows = false;
+const renderTerminalPage = () => {{ if (renderThrows) throw new Error("boom"); renders += 1; wrap.scrollHeight += 20; }};
 const fillTerminalViewport = () => {{ fills += 1; }};
 const showToast = () => {{}};
 const el = () => ({{}});
@@ -768,6 +769,89 @@ const __main = async () => {
         self.assertEqual(out["reading"], {"writes": 0, "renders": 1})
         self.assertEqual(out["following"]["writes"], 1)
         self.assertEqual(out["following"]["top"], out["following"]["bottom"])
+
+    def test_new_content_is_always_accepted(self) -> None:
+        # alt-screen (no history), history not full, row numbers unchanged while the content changes,
+        # a merge that throws, malformed lines, and a render that throws: every one must move tailHash
+        # on and show the new content, so the next request never repeats the old if_hash.
+        out = self.latest_js("""
+const console = { errors: [], error(...a) { this.errors.push(String(a[0])); } };
+const page = (lines, extra = {}) => ({ lines, first_line: 0, end_line: lines.length, total_lines: lines.length, width: 80, height: 34,
+  history_size: 0, history_limit: 2000, ...extra });
+const __main = async () => {
+  const seen = [];
+  const step = async (data) => { next = data; await loadTerminalLatest("%9", false); const p = state.terminalPagesByPane.get("%9"); seen.push([p.tailHash, p.lines.at(-1)]); };
+  await step({ ...page(["✻ Working 1s", "> "]), hash: "a1" });                       // alt screen, first capture
+  await step({ ...page(["✻ Working 2s", "> "]), hash: "a2" });                       // same rows, content changed
+  await step({ ...page(["x", "y", "z"], { history_size: 40 }), hash: "a3" });         // history not full
+  const realMerge = mergeTerminalTail;
+  mergeTerminalTail = () => { throw new Error("merge exploded"); };
+  await step({ ...page(["after merge error"]), hash: "a4" });
+  mergeTerminalTail = realMerge;
+  await step({ ...page([]), lines: undefined, hash: "a5", width: 80 });               // malformed: no lines
+  renderThrows = true;
+  next = { ...page(["render fails"]), hash: "a6" };
+  let rejected = false;
+  try { await loadTerminalLatest("%9", false); } catch (_) { rejected = true; }
+  renderThrows = false;
+  const p = state.terminalPagesByPane.get("%9");
+  return { seen, afterRenderError: [p.tailHash, p.lines.at(-1)], rejected, errors: console.errors.length };
+};""")
+        self.assertEqual(out["seen"], [["a1", "> "], ["a2", "> "], ["a3", "z"], ["a4", "after merge error"], ["a5", None]])
+        self.assertEqual(out["afterRenderError"], ["a6", "render fails"])
+        self.assertFalse(out["rejected"])
+        self.assertEqual(out["errors"], 2)  # the merge and the render failure are both logged
+
+    def test_triggers_while_a_request_is_in_flight_do_not_starve_it(self) -> None:
+        # 2026-09-24: every kick aborted the in-flight request; with responses slower than the kicks
+        # nothing ever completed and the browser sent the same if_hash 1582 times in 24 s.
+        latest = snippet(self.source, "    function loadTerminalLatest(paneId", "\n    // 往上翻到顶")
+        poll = snippet(self.source, "    const TERMINAL_POLL_FAST_MS = 300;", "\n    // ---- 卡片内 tmux 视图: 让窗口跟随查看者尺寸") \
+            .replace("= 300;", "= 30;").replace("= 1000;", "= 60;")
+        merge = snippet(self.source, "    const TERMINAL_TAIL_EXTRA = 150;", "\n    // ---- 卡片内 tmux 视图: tmux 顶部之上接对话记录")
+        script = f"""
+const state = {{ terminalOpen: true, selected: "%9", terminalLoadingOlder: false, terminalFollowLatest: true, sharedFilesOpen: false,
+  terminalCaptureSeq: 0, terminalAbortController: null, terminalPagesByPane: new Map(), terminalUnchangedPolls: 0,
+  terminalLastChangeAt: 0, terminalPollTimer: 0, terminalPollInFlight: false, terminalPollKick: false,
+  terminalLatestInFlight: null, panes: [], thinkingSince: {{}} }};
+const document = {{ hidden: false }};
+const TERMINAL_PAGE_LINES = 600;
+const terminalPageState = (p) => state.terminalPagesByPane.get(p) || null;
+const renderTerminalPage = () => {{}}, fillTerminalViewport = () => {{}}, anchorTerminalBottom = () => {{}}, showToast = () => {{}};
+const el = () => ({{}}); const paneIsProcessing = () => true;
+let version = 0, inFlight = 0, maxInFlight = 0, aborted = 0; const sent = [];
+const ticker = setInterval(() => {{ version += 1; }}, 15);
+const fetchTerminalCapture = (paneId, params, signal) => new Promise((resolve, reject) => {{
+  sent.push(params.if_hash || ""); inFlight += 1; maxInFlight = Math.max(maxInFlight, inFlight);
+  const lines = Array.from({{ length: 20 }}, (_, i) => `row ${{i}} v${{version}}`);
+  const t = setTimeout(() => {{ inFlight -= 1; resolve({{ lines, first_line: 0, end_line: 20, total_lines: 20, width: 80, height: 34,
+    history_size: 0, history_limit: 2000, hash: "h" + sent.length }}); }}, 45);
+  signal?.addEventListener("abort", () => {{ clearTimeout(t); inFlight -= 1; aborted += 1; const e = new Error("aborted"); e.name = "AbortError"; reject(e); }});
+}});
+{merge}
+{latest}
+{poll}
+scheduleTerminalPoll(0);
+const kicker = setInterval(() => {{ kickTerminalPoll(); loadTerminalLatest("%9", true); }}, 20);
+setTimeout(() => {{
+  clearInterval(kicker);
+  setTimeout(() => {{
+    state.terminalOpen = false; clearInterval(ticker);
+    const counts = sent.reduce((m, h) => (m[h] = (m[h] || 0) + 1, m), {{}});
+    process.stdout.write(JSON.stringify({{ requests: sent.length, maxRepeat: Math.max(...Object.values(counts)), maxInFlight, aborted,
+      tail: state.terminalPagesByPane.get("%9")?.tailHash || null }}));
+    process.exit(0);
+  }}, 200);
+}}, 800);
+"""
+        result = subprocess.run(["node", "-e", script], check=False, capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["aborted"], 0)
+        self.assertEqual(out["maxInFlight"], 1)
+        self.assertEqual(out["maxRepeat"], 1)        # every request carries the hash of the previous answer
+        self.assertGreater(out["requests"], 8)       # and polling kept going at the fast cadence
+        self.assertTrue(out["tail"])
 
     def test_composer_resize_restores_the_scroll_position(self) -> None:
         resize = snippet(self.source, "    function autoResizeComposer()", "\n    function isMobileLayout()")
@@ -915,7 +999,7 @@ const __out = {
         self.assertIn("console.info(", send)
         self.assertIn("state.terminalResizeTimer = setTimeout(() => sendTerminalResize(paneId), 500);", self.source)
         self.assertIn("}).observe(document.querySelector(\".timeline-wrap\"));", self.source)
-        latest = snippet(self.source, "    async function loadTerminalLatest(paneId", "\n    // 往上翻到顶")
+        latest = snippet(self.source, "    function loadTerminalLatest(paneId", "\n    // 往上翻到顶")
         self.assertIn("const resized = current && Number(data.width || 0) !== current.width;", latest)
 
     def test_palette_contrast_and_sgr(self) -> None:

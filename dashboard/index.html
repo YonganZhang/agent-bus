@@ -4537,6 +4537,9 @@
       terminalLoadingOlder: false,
       terminalFollowLatest: true,
       terminalPollTimer: 0,
+      terminalPollInFlight: false,
+      terminalPollKick: false,
+      terminalLatestInFlight: null,
       terminalUnchangedPolls: 0,
       terminalLastChangeAt: 0,
       terminalResizeTimer: 0,
@@ -10787,25 +10790,33 @@
       return TERMINAL_POLL_IDLE_MS;
     }
 
+    // 只有一条轮询链: 正在取的时候来的触发只记一笔, 由这一拍结束时立刻接着取, 不另起一条链。
     function scheduleTerminalPoll(delay) {
       clearTimeout(state.terminalPollTimer);
       state.terminalPollTimer = 0;
       if (!state.terminalOpen) return;
+      if (state.terminalPollInFlight) {
+        if (delay === 0) state.terminalPollKick = true;
+        return;
+      }
       state.terminalPollTimer = setTimeout(terminalPollTick, delay);
     }
 
     async function terminalPollTick() {
       state.terminalPollTimer = 0;
       const paneId = state.selected;
-      if (!state.terminalOpen || !paneId || state.sharedFilesOpen) return;
+      if (state.terminalPollInFlight || !state.terminalOpen || !paneId || state.sharedFilesOpen) return;
+      state.terminalPollInFlight = true;
+      state.terminalPollKick = false;
       try {
         await loadTerminalLatest(paneId, false);
       } catch (_) {
-        // loadTerminalLatest 已把错误写进终端状态行; 下一拍继续试
+        // runTerminalLatest 已把错误写进终端状态行; 下一拍继续试
       } finally {
-        if (state.terminalOpen && !state.terminalPollTimer) {
+        state.terminalPollInFlight = false;
+        if (state.terminalOpen) {
           const pane = state.panes.find((item) => item.pane_id === state.selected);
-          scheduleTerminalPoll(terminalPollDelay({
+          scheduleTerminalPoll(state.terminalPollKick ? 0 : terminalPollDelay({
             hidden: document.hidden,
             busy: paneIsProcessing(pane) || Boolean(state.thinkingSince[state.selected]),
             sinceChangeMs: Date.now() - (state.terminalLastChangeAt || 0),
@@ -10898,19 +10909,55 @@
 
     // 首次读最新 TERMINAL_PAGE_LINES 行; 之后轮询只取"屏幕 + TERMINAL_TAIL_EXTRA 行", 用
     // mergeTerminalTail 接到已有内容后面 (内容没变时服务端按 if_hash 只回 unchanged)。
-    async function loadTerminalLatest(paneId, forceBottom = false) {
-      if (!state.terminalOpen || paneId !== state.selected || state.terminalLoadingOlder) return;
+    // 同一个窗口同时只有一个"取最新"请求在路上: 新的触发 (轮询、发送后、按键后、切回前台) 不去中止
+    // 它, 而是等它回来 —— 以前每次触发都中止上一个, 响应慢于触发间隔 (外网 / Cloudflare) 时每个请求都
+    // 在返回前被中止, 画面和 if_hash 永远停在旧值 (2026-09-24 用户报 56 号终端"卡了": 24 秒里 1582 次
+    // 同一个 if_hash)。只有换了窗口或关掉终端视图才中止。
+    function loadTerminalLatest(paneId, forceBottom = false) {
+      if (!state.terminalOpen || paneId !== state.selected || state.terminalLoadingOlder) return Promise.resolve();
+      const running = state.terminalLatestInFlight;
+      if (running && running.paneId === paneId) {
+        if (forceBottom) running.forceBottom = true;
+        return running.promise;
+      }
+      state.terminalAbortController?.abort();
+      const job = { paneId, forceBottom, promise: null };
+      job.promise = runTerminalLatest(job).finally(() => {
+        if (state.terminalLatestInFlight === job) state.terminalLatestInFlight = null;
+      });
+      state.terminalLatestInFlight = job;
+      return job.promise;
+    }
+
+    // 拿到的新内容一定要显示出来并记下它的 hash: 拼接出错就整段换成新内容, 渲染出错只记日志,
+    // 不能让下一次请求还带着旧的 if_hash。
+    function acceptTerminalCapture(paneId, current, data) {
+      let merged;
+      try {
+        const resized = current && Number(data.width || 0) !== current.width;
+        merged = resized ? { page: terminalPageFromData(data), mode: "fresh" } : mergeTerminalTail(current, data);
+      } catch (error) {
+        console.error("[cards-terminal] 拼接新内容失败，整段换成新内容：", error);
+        merged = { page: terminalPageFromData(data), mode: "replaced" };
+      }
+      merged.page.tailHash = String(data.hash || "");
+      state.terminalPagesByPane.set(paneId, merged.page);
+      return merged.mode;
+    }
+
+    async function runTerminalLatest(job) {
+      const { paneId } = job;
       const current = terminalPageState(paneId);
       const params = current
         ? { lines: String(Math.max(40, current.height) + TERMINAL_TAIL_EXTRA), if_hash: current.tailHash || "" }
         : { lines: String(TERMINAL_PAGE_LINES) };
       const requestSeq = ++state.terminalCaptureSeq;
-      state.terminalAbortController?.abort();
       const controller = new AbortController();
       state.terminalAbortController = controller;
       try {
         const data = await fetchTerminalCapture(paneId, params, controller.signal);
         if (requestSeq !== state.terminalCaptureSeq || paneId !== state.selected || !state.terminalOpen) return;
+        const forceBottom = job.forceBottom;
         const followLatest = forceBottom || state.terminalFollowLatest;  // 读完再判断: 用户可能刚往上翻
         if (data.unchanged) {
           // 内容没变: 不重绘、不动滚动位置 (只有显式要求到底时才校正一次)。
@@ -10920,17 +10967,18 @@
         }
         state.terminalUnchangedPolls = 0;
         state.terminalLastChangeAt = Date.now();
-        // 窗口尺寸变了 (刚按查看者尺寸调过): 画面整体重排, 按新内容从头显示, 不拼接
-        const resized = current && Number(data.width || 0) !== current.width;
-        const { page, mode } = resized ? { page: terminalPageFromData(data), mode: "fresh" } : mergeTerminalTail(current, data);
-        page.tailHash = String(data.hash || "");
-        state.terminalPagesByPane.set(paneId, page);
+        const mode = acceptTerminalCapture(paneId, current, data);
         if (mode === "replaced" && current && !followLatest) showToast("终端输出太快，更早的内容已收起；往上滚会重新加载");
         if (forceBottom) state.terminalFollowLatest = true;
-        renderTerminalPage(paneId);
-        // 跟随时直接把 scrollTop 设到底 (不做动画、不连环 rAF); 没在跟随就一动不动。
-        if (followLatest) anchorTerminalBottom();
-        fillTerminalViewport(paneId);
+        try {
+          renderTerminalPage(paneId);
+          // 跟随时直接把 scrollTop 设到底 (不做动画、不连环 rAF); 没在跟随就一动不动。
+          if (followLatest) anchorTerminalBottom();
+          fillTerminalViewport(paneId);
+        } catch (error) {
+          console.error("[cards-terminal] 渲染终端画面失败：", error);
+          el("terminalText")._termLines = null;  // 下次整块重建, 不在半截的 DOM 上打补丁
+        }
       } catch (error) {
         if (error?.name === "AbortError") return;
         if (state.terminalOpen && paneId === state.selected) {
