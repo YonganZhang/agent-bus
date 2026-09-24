@@ -1,5 +1,7 @@
 # Configuration
 
+**English** | [简体中文](configuration.zh-CN.md)
+
 Everything is configured with environment variables; there is no config file to
 write except the optional `$AGENT_BUS_DIR/config.json` (managed by
 `agent-bus leader config`) and the dashboard credentials file.

@@ -12,7 +12,9 @@
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-supported-D97757.svg)](#state-from-the-providers-own-signals)
 [![Codex CLI](https://img.shields.io/badge/Codex%20CLI-supported-412991.svg)](#state-from-the-providers-own-signals)
 
-[中文说明](README.zh-CN.md) · [Docs](docs/) · [Dashboard](docs/dashboard.md) · [Safety model](docs/safety-model.md)
+**English** | [简体中文](README.zh-CN.md)
+
+[Docs](docs/) · [Dashboard](docs/dashboard.md) · [Plan integration](docs/plan-integration.md) · [Safety model](docs/safety-model.md)
 
 </div>
 
@@ -317,7 +319,7 @@ More detail: [docs/architecture.md](docs/architecture.md).
 | ⌨️ Composer | Send text and uploads; collapsing it only collapses it (the draft is kept per window) — only Send sends | ✅ | ✅ |
 | 🌿 Git row | Branch, **待归档 N** (新 / 改), **未推送 N** or 无远端, **上次归档** age, **▶ current task** (with the plan integration); computed off the request path | ✅ | ✅ (compact) |
 | 🧰 Title-bar buttons | 计划 / 归档 / 终端 always shown; greyed out with the reason when unavailable | ✅ | ✅ (in "⋯" / ⌁ menus) |
-| 🖥️ Terminal view | The pane's real terminal inside the card: ANSI colours, 0.3 s adaptive refresh, no scroll jitter, window sized to the viewer (Claude windows at most 109 columns), scroll up into scrollback and then the conversation records | ✅ | ✅ |
+| 🖥️ Terminal view | The pane's real terminal inside the card: ANSI colours, 0.3 s adaptive refresh, no scroll jitter, window sized to the viewer, scroll up into scrollback and then the conversation records | ✅ | ✅ |
 | 🔗 Card ↔ terminal | `?pane=%12` deep links; "打开完整终端页" points your web terminal at the pane (needs `TMUX_CARD_TERMINAL_URL`); `/api/terminal/status` checks both show the same pane | ✅ | ✅ |
 | 📋 Plan panel *(optional)* | Plan file as an outline tree with progress, notes, 动态 / 分拣 / 原文 tabs and whitelisted edits | ✅ drawer | ✅ full screen |
 | 📦 One-click archive *(optional)* | Sends your archive prompt to the idle AI and reports new commits, files left and whether the plan changed | ✅ | ✅ |
@@ -439,7 +441,7 @@ historical `SECRETARY_` / `TMUX_CARD_` prefixes for compatibility.
 python3 -m pytest -q
 ```
 
-Last full run: **950 passed, 1 skipped, 1 xfailed** (Linux, Python 3.10,
+Last full run: **948 passed, 1 skipped, 1 xfailed** (Linux, Python 3.10,
 tmux 3.7, Node.js 22, Playwright Chromium; no plan CLI installed). There is no
 CI yet, so the badge above is static.
 
@@ -505,9 +507,7 @@ better.
   permission dialog" and left for a human, which is safe but may need updates.
 - The in-card terminal view resizes the pane's tmux window to the viewer
   (unless a real terminal client used that window in the last 30 s); opening
-  the full terminal page hands the size back to the real clients. Claude Code's
-  fullscreen UI opens a code-changes side panel at 110 columns or more, so
-  Claude windows are capped at 109 columns in the terminal view.
+  the full terminal page hands the size back to the real clients.
 
 ## 📁 Repository layout
 

@@ -1,5 +1,7 @@
 # Optional plan and archive integration
 
+**English** | [简体中文](plan-integration.zh-CN.md)
+
 The Cards dashboard can show a project's task plan next to the conversation,
 edit it through a small whitelist of actions, triage uncommitted files, and
 send a one-click "archive" prompt to the AI in a pane. These features are

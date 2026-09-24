@@ -1,5 +1,7 @@
 # Architecture
 
+**English** | [简体中文](architecture.zh-CN.md)
+
 Agent Bus is a set of cooperating command-line modules plus a dashboard. There is
 no central daemon: every command reads and writes durable files under
 `$AGENT_BUS_DIR`, and the long-running pieces (the dashboard, an optional

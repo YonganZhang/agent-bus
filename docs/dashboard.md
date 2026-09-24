@@ -1,5 +1,7 @@
 # Cards dashboard
 
+**English** | [简体中文](dashboard.zh-CN.md)
+
 `dashboard/` is a single-page web app ("AI Session Cards") plus a stdlib HTTP
 server. It shows one card per pane of one tmux session and lets you read and
 drive those sessions from a browser, including a phone.

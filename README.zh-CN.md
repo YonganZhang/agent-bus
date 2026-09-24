@@ -12,7 +12,9 @@
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-supported-D97757.svg)](#以提供方自己的信号判状态)
 [![Codex CLI](https://img.shields.io/badge/Codex%20CLI-supported-412991.svg)](#以提供方自己的信号判状态)
 
-[English](README.md) · [文档（英文）](docs/) · [卡片网站](docs/dashboard.md) · [安全模型](docs/safety-model.md)
+[English](README.md) | **简体中文**
+
+[文档](docs/) · [卡片网站](docs/dashboard.zh-CN.md) · [计划集成](docs/plan-integration.zh-CN.md) · [安全模型](docs/safety-model.zh-CN.md)
 
 </div>
 
@@ -100,7 +102,7 @@ Agent Bus 是一组只用 Python 标准库的小工具加一个网页面板，�
 
 ### 卡片网站
 
-单页网页（`dashboard/`，标准库 HTTP 服务），每个 tmux 窗口一张卡片：实时对话、状态、Git 情况、卡片内终端、可选的任务计划面板，以及手机布局。见下方 [功能一览](#️-卡片网站功能一览) 与 [docs/dashboard.md](docs/dashboard.md)。
+单页网页（`dashboard/`，标准库 HTTP 服务），每个 tmux 窗口一张卡片：实时对话、状态、Git 情况、卡片内终端、可选的任务计划面板，以及手机布局。见下方 [功能一览](#️-卡片网站功能一览) 与 [docs/dashboard.zh-CN.md](docs/dashboard.zh-CN.md)。
 
 ## 🖼️ 截图
 
@@ -176,7 +178,7 @@ python3 dashboard/server.py            # --help 列出可配置项
 
 systemd 用户单元示例（网站、tmux 守护、快照定时器、开机自动恢复）在 [contrib/systemd/](contrib/systemd/)；把会话号钉到窗口上的 Claude Code `SessionStart` / `SessionEnd` hook 在 [contrib/claude-hooks/](contrib/claude-hooks/)。
 
-延伸阅读（英文）：[负责人流程](docs/leader-workflow.md)、[恢复](docs/recovery.md)、[卡片网站](docs/dashboard.md)、[计划集成](docs/plan-integration.md)、[安全模型](docs/safety-model.md)。
+延伸阅读：[负责人流程](docs/leader-workflow.md)（英文）、[恢复](docs/recovery.md)（英文）、[卡片网站](docs/dashboard.zh-CN.md)、[计划集成](docs/plan-integration.zh-CN.md)、[安全模型](docs/safety-model.zh-CN.md)。
 
 ## 🧭 架构
 
@@ -205,7 +207,7 @@ systemd 用户单元示例（网站、tmux 守护、快照定时器、开机自�
    └─────────────────────────────────┘   └──────────────────────────────────┘
 ```
 
-详见 [docs/architecture.md](docs/architecture.md)。
+详见 [docs/architecture.zh-CN.md](docs/architecture.zh-CN.md)。
 
 ## 🗂️ 卡片网站功能一览
 
@@ -217,7 +219,7 @@ systemd 用户单元示例（网站、tmux 守护、快照定时器、开机自�
 | ⌨️ 输入框 | 发送文字与上传文件；收起输入框只收起（草稿按窗口保存），只有"发送"才发出去 | ✅ | ✅ |
 | 🌿 Git 行 | 分支、**待归档 N**（新 / 改）、**未推送 N** 或"无远端"、**上次归档**时间、**▶ 当前任务**（需计划集成）；在请求路径之外计算 | ✅ | ✅（精简） |
 | 🧰 标题栏三按钮 | 计划 / 归档 / 终端始终显示；不能用时置灰并说明原因 | ✅ | ✅（在"⋯"/⌁ 菜单里） |
-| 🖥️ 终端视图 | 在卡片里显示窗口的真实终端：ANSI 配色、0.3 秒自适应刷新、不抖动、窗口按查看者尺寸调整（Claude 窗口最多 109 列），往上翻先接 scrollback 再接对话记录 | ✅ | ✅ |
+| 🖥️ 终端视图 | 在卡片里显示窗口的真实终端：ANSI 配色、0.3 秒自适应刷新、不抖动、窗口按查看者尺寸调整，往上翻先接 scrollback 再接对话记录 | ✅ | ✅ |
 | 🔗 卡片 ↔ 终端 | `?pane=%12` 深链；"打开完整终端页"把网页终端切到该窗口（需 `TMUX_CARD_TERMINAL_URL`）；`/api/terminal/status` 核对两边是否同一窗口 | ✅ | ✅ |
 | 📋 计划面板（可选） | 计划文件的大纲树与进度、任务笔记、动态 / 分拣 / 原文标签页、白名单增删改 | ✅ 抽屉 | ✅ 全屏 |
 | 📦 一键归档（可选） | 把你的归档提示发给空闲的 AI，完成后报告新增提交、剩余待归档和计划是否更新 | ✅ | ✅ |
@@ -227,7 +229,7 @@ systemd 用户单元示例（网站、tmux 守护、快照定时器、开机自�
 | 📎 文件 | 共享上传区；回复里的本地产物路径变成带鉴权的下载 / 预览链接 | ✅ | ✅ |
 | ⌁ 悬浮菜单 | 可拖动的圆形按钮，展开 计划 / 终端 / ESC；展开前后圆心不动，旋转屏幕后夹回可视区 | ✅ | ✅ |
 
-界面文字为中文。所有写接口要求 JSON 并拒绝跨站请求；接口说明见 [docs/dashboard.md](docs/dashboard.md)。
+界面文字为中文。所有写接口要求 JSON 并拒绝跨站请求；接口说明见 [docs/dashboard.zh-CN.md](docs/dashboard.zh-CN.md)。
 
 ## 🔌 可选集成：计划与归档
 
@@ -239,7 +241,7 @@ CARDS_ARCHIVE_PROMPT=/path/to/archive-prompt.md \
 python3 dashboard/server.py
 ```
 
-不配这两个变量时其余功能照常；"计划""归档"按钮仍显示但置灰（"需要配置 share-top 集成……"），`/api/plan*` 与 `/api/archive-request` 返回 `501`。约定细节、计划文件格式和笔记格式见 [docs/plan-integration.md](docs/plan-integration.md)；[`tests/dashboard/fixtures/fake_plan_cli.py`](tests/dashboard/fixtures/fake_plan_cli.py) 是一个最小参考实现。
+不配这两个变量时其余功能照常；"计划""归档"按钮仍显示但置灰（"需要配置 share-top 集成……"），`/api/plan*` 与 `/api/archive-request` 返回 `501`。约定细节、计划文件格式和笔记格式见 [docs/plan-integration.zh-CN.md](docs/plan-integration.zh-CN.md)；[`tests/dashboard/fixtures/fake_plan_cli.py`](tests/dashboard/fixtures/fake_plan_cli.py) 是一个最小参考实现。
 
 ## 🛡️ 安全模型
 
@@ -254,7 +256,7 @@ python3 dashboard/server.py
 - **提供方条款。** Agent Bus 像你一样通过终端驱动官方交互式 CLI，不抽取、不保存、不转发凭证，自身也不调用提供方 API。请在各自的服务条款范围内使用 Claude Code 和 Codex。
 - 不要把密码、token、API key 写进任务文本：任务预览会存进账本。
 
-它不会做的事：不替你回答工作问题；不用 `--continue` / `resume --last` 接"最近一条"对话；负责人的控制动作（按键、打断、重启、关闭）只作用于它认领的窗口，此外窗口只会被你显式执行的命令关闭或重建（`agent_window.sh restart|close`、`recovery ... --yes`、网站上的关闭按钮）；没有记录在案的证据就不会把负责人会话关为完成。详见 [docs/safety-model.md](docs/safety-model.md)。
+它不会做的事：不替你回答工作问题；不用 `--continue` / `resume --last` 接"最近一条"对话；负责人的控制动作（按键、打断、重启、关闭）只作用于它认领的窗口，此外窗口只会被你显式执行的命令关闭或重建（`agent_window.sh restart|close`、`recovery ... --yes`、网站上的关闭按钮）；没有记录在案的证据就不会把负责人会话关为完成。详见 [docs/safety-model.zh-CN.md](docs/safety-model.zh-CN.md)。
 
 ## ⚙️ 配置
 
@@ -277,7 +279,7 @@ python3 dashboard/server.py
 | `CARDS_TOP_CLI` / `CARDS_ARCHIVE_PROMPT` | 未设置 | 可选的计划 / 归档集成 |
 | `PYTHON` | `python3` | `bin/agent-bus` 使用的解释器 |
 
-完整列表（超时、缓存、leaderd 调参等）见 [docs/configuration.md](docs/configuration.md)。部分变量出于兼容保留历史前缀 `SECRETARY_` / `TMUX_CARD_`。
+完整列表（超时、缓存、leaderd 调参等）见 [docs/configuration.zh-CN.md](docs/configuration.zh-CN.md)。部分变量出于兼容保留历史前缀 `SECRETARY_` / `TMUX_CARD_`。
 
 ## 🧪 测试
 
@@ -285,7 +287,7 @@ python3 dashboard/server.py
 python3 -m pytest -q
 ```
 
-最近一次全量：**950 passed, 1 skipped, 1 xfailed**（Linux、Python 3.10、tmux 3.7、Node.js 22、Playwright Chromium；未安装任何计划 CLI）。目前还没有 CI，上面的测试徽章是静态的。
+最近一次全量：**948 passed, 1 skipped, 1 xfailed**（Linux、Python 3.10、tmux 3.7、Node.js 22、Playwright Chromium；未安装任何计划 CLI）。目前还没有 CI，上面的测试徽章是静态的。
 
 - 测试会在临时目录里起自己的 tmux server（设置 `TMUX_TMPDIR` 并去掉 `$TMUX`），并使用临时总线目录和临时 `HOME`，因此不会碰你真实的 tmux 会话、`~/.codex/agent-bus` 或 `~/.claude`。终端视图相关测试用私有 socket 驱动**真的** tmux。
 - 前端测试用 Node.js 运行页面里的 JavaScript（需要安装 Node.js）。浏览器测试用 Playwright + Chromium，缺少任一时自动跳过（`python3 -m playwright install chromium`）。
@@ -314,7 +316,7 @@ Agent Bus 与它们互补：它监管许多独立的、已经在运行的交互�
 - 仅支持 Linux（`/proc`、`fcntl`）。
 - 网站界面、大量代码注释和部分脚本输出（例如 `agent_window.sh`、恢复相关提示）是中文；README、文档和大部分 CLI 帮助为英文。
 - 对话框自动审批基于模式识别。新出现的对话框形态会被当成"不是权限对话框"留给人处理——这是安全的，但可能需要更新规则。
-- 卡片内终端视图会把窗口的 tmux 尺寸调成查看者的尺寸（30 秒内有真实终端客户端在用该窗口时不调）；打开完整终端页时会把尺寸交还给真实客户端。Claude Code 全屏界面在 ≥110 列时会开代码改动侧栏，所以 Claude 窗口在卡片终端视图里最多 109 列。
+- 卡片内终端视图会把窗口的 tmux 尺寸调成查看者的尺寸（30 秒内有真实终端客户端在用该窗口时不调）；打开完整终端页时会把尺寸交还给真实客户端。
 
 ## 📁 目录结构
 
@@ -322,13 +324,24 @@ Agent Bus 与它们互补：它监管许多独立的、已经在运行的交互�
 bin/agent-bus            CLI 分发（bin/secretary-bus 为别名）
 bin/ai-session-shell     启动 wrapper：AI 退出后保留窗口并打印恢复命令
 scripts/                 总线模块（标准库 Python）与 shell 辅助脚本
+  cli_bridge.py          登记 / 发送、身份冻结、投递
+  supervisor.py          start / collect / continue 任务
+  leader.py              负责人会话；leader_daemon.py 负责后台唤醒
+  provider_state.py      窗口的精确 / 推断提供方状态
+  claude_sessions.py, claude_subagents.py, codex_subagents.py, pane_detectors.py, dialogs.py
+  event_ledger.py        统一的任务 / 事件账本
+  codex_app.py           Codex app-server 员工
+  secretary_recovery.py  快照与恢复；stamp_live_panes.py
+  window_transition.py   窗口的 Claude <-> Codex 交接
   cards_control.py       `agent-bus cards ...`（收藏、分类、别名、排序）
   agent_window.sh        开 / 新建 / 重启 / 关闭窗口，必须写明会话选择
+  create-isolated-codex-home.sh
 dashboard/               卡片网站（server.py、index.html、轨迹视图）
 contrib/boot/            ensure-tmux-session、auto-restore
 contrib/systemd/         systemd 用户单元示例
 contrib/claude-hooks/    tmux-session-stamp.sh（Claude Code hook）
-docs/                    架构、安全模型、负责人流程、恢复、网站、计划集成、配置（英文）；images/ 为 README 截图
+docs/                    架构、安全模型、负责人流程、恢复、卡片网站、
+                         计划集成、配置；images/ 为 README 截图
 tests/                   总线测试、tests/dashboard/（含 fixtures/fake_plan_cli.py）、
                          tests/e2e/（手动浏览器脚本、截图生成器）
 ```

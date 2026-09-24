@@ -1,5 +1,7 @@
 # Safety model
 
+**English** | [简体中文](safety-model.zh-CN.md)
+
 Agent Bus types into terminals that run AI agents with access to your files.
 A wrong keystroke in the wrong pane can approve a command, confirm a dialog, or
 start work in the wrong repository. The design goal is: when in doubt, do
