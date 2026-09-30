@@ -409,6 +409,42 @@ class ProviderStateTest(unittest.TestCase):
         self.assertEqual(payload["state"]["source"], "tmux_live_tail")
         self.assertTrue(any(item["kind"] == "permission_prompt" for item in payload["state"]["evidence"]))
 
+    def test_codex_one_time_dialog_over_an_idle_rollout_is_needs_input(self) -> None:
+        # The rollout says the last turn completed, but the update prompt owns
+        # the input: typing a task plus Enter would pick "Update now".
+        screen = (ROOT / "tests" / "fixtures_codex_update_prompt.txt").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            rollout = Path(tmp) / "rollout-thread-9.jsonl"
+            records = [
+                {"type": "session_meta", "payload": {"id": "thread-9"}},
+                {"type": "event_msg", "payload": {"type": "task_started"}},
+                {"type": "event_msg", "payload": {"type": "task_complete"}},
+            ]
+            rollout.write_text("".join(json.dumps(item) + "\n" for item in records), encoding="utf-8")
+            with self.common("codex") as patched, mock.patch.object(
+                provider_state, "process_tree_pids", return_value=[410]
+            ), mock.patch.object(
+                provider_state, "rollout_paths_for_pids", return_value=[rollout]
+            ), mock.patch.object(
+                provider_state, "codex_exact_run_state", return_value={}
+            ), mock.patch.object(
+                provider_state, "capture_pane", return_value=screen
+            ):
+                patched["load_targets"].return_value = {"worker": target("codex")}
+                patched["target_info"].return_value = runtime("codex")
+                payload = provider_state.snapshot_target("worker")
+
+        self.assertEqual(payload["session"]["id"], "thread-9")
+        self.assertEqual(payload["state"]["value"], "needs_input")
+        self.assertEqual(payload["state"]["source"], "tmux_live_tail")
+        self.assertTrue(any(item["kind"] == "dialog_open" for item in payload["state"]["evidence"]))
+
+    def test_resume_paused_goal_prompt_is_needs_input(self) -> None:
+        screen = (ROOT / "tests" / "fixtures_codex_resume_goal.txt").read_text(encoding="utf-8")
+        value, confidence, evidence = provider_state.live_tail_state(screen)
+        self.assertEqual((value, confidence), ("needs_input", "high"))
+        self.assertIn("Leave paused", evidence[0]["detail"])
+
     def test_prompt_words_above_an_input_box_are_conversation(self) -> None:
         rule = "─" * 60
         screen = "● 回答里引用了一句 Do you want to proceed?\n  1. Yes\n  2. No\n" + "\n".join([rule, "❯", rule, "  ⏵⏵ bypass permissions on"])

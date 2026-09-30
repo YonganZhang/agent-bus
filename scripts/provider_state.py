@@ -32,6 +32,7 @@ import claude_sessions  # noqa: E402
 import claude_subagents  # noqa: E402
 import cli_bridge  # noqa: E402
 import codex_subagents  # noqa: E402
+import dialogs  # noqa: E402
 import pane_detectors  # noqa: E402
 
 
@@ -504,6 +505,14 @@ def live_tail_state(text: str) -> tuple[str, str, list[dict[str, str]]]:
     # (an answer quoting "Do you want to proceed?", a numbered list), not a
     # question waiting for a key press.  The subagent panel Claude draws below
     # the footer is chrome and must not push status lines out of the window.
+    # A one-time dialog (Codex update prompt, "Resume paused goal?", pickers)
+    # owns the input: pasted text plus Enter would confirm its highlighted row,
+    # e.g. a global `npm install -g` or resuming a paused goal.  The provider's
+    # own record still says idle there, so the screen has to say needs_input.
+    dialog = dialogs.read_dialog(clean)
+    if dialog is not None:
+        detail = f"{dialog.kind}: " + " / ".join(dialog.options[:3])
+        return "needs_input", "high", [{"kind": "dialog_open", "source": "tmux_live_tail", "detail": detail[:160]}]
     raw_lines = pane_detectors.strip_agent_panel(clean.splitlines())
     split = pane_detectors.split_screen(raw_lines)
     prompt_can_be_live = not split.has_input_region

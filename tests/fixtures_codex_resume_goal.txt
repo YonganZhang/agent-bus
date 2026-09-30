@@ -1,0 +1,5 @@
+  Resume paused goal?
+  Goal: 完成论文收尾：核查实验并生成可编译稿件
+› 1. Resume goal   Mark it active and continue when idle
+  2. Leave paused  Keep it paused; use /goal resume later
+  enter select · esc back
